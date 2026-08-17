@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terrastep — Claim Loop Prototype</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2e; --panel2:#16223c; --line:#243352;
+    --txt:#e6edf7; --dim:#8fa3c4; --me:#3b82f6; --rival:#ef4444;
+    --rival2:#f59e0b; --ok:#22c55e;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);overflow:hidden}
+  #wrap{display:flex;height:100vh;width:100vw}
+  #stage{flex:1;position:relative;background:
+     radial-gradient(1200px 800px at 30% 20%,#0f1b33 0%,#0b1220 60%)}
+  canvas{display:block;width:100%;height:100%;cursor:crosshair}
+  #side{width:330px;flex:none;background:var(--panel);border-left:1px solid var(--line);
+        overflow-y:auto;padding:16px}
+  h1{font-size:17px;margin:0 0 2px;letter-spacing:.3px}
+  .sub{font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.5}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+        padding:11px 12px;margin-bottom:10px}
+  .card h2{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--dim);
+           margin:0 0 9px;font-weight:600}
+  .row{display:flex;justify-content:space-between;align-items:center;
+       font-size:12px;padding:3px 0}
+  .row b{font-variant-numeric:tabular-nums;font-weight:600}
+  .bar{height:5px;background:#0b1220;border-radius:3px;overflow:hidden;margin-top:4px}
+  .bar > i{display:block;height:100%;background:var(--ok);transition:width .2s}
+  button{width:100%;padding:9px;margin-top:6px;border-radius:8px;border:1px solid var(--line);
+         background:#1d2b4a;color:var(--txt);font-size:12px;font-weight:600;cursor:pointer}
+  button:hover{background:#26375c}
+  button.primary{background:var(--me);border-color:var(--me)}
+  button.danger{background:#7f1d1d;border-color:#991b1b}
+  .legend{display:flex;align-items:center;gap:7px;font-size:11px;padding:3px 0;color:var(--dim)}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none;border:1px solid rgba(255,255,255,.25)}
+  #log{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;line-height:1.6;
+       max-height:150px;overflow-y:auto;color:var(--dim)}
+  #log div{padding:1px 0}
+  .tag{display:inline-block;padding:0 5px;border-radius:3px;font-size:9px;font-weight:700;
+       margin-right:5px;vertical-align:1px}
+  .t-claim{background:#14532d;color:#86efac}
+  .t-cap{background:#7c2d12;color:#fdba74}
+  .t-rej{background:#450a0a;color:#fca5a5}
+  .t-rein{background:#1e3a5f;color:#93c5fd}
+  input[type=range]{width:100%;margin:4px 0}
+  .hint{font-size:10.5px;color:var(--dim);line-height:1.5;margin-top:6px}
+  #hud{position:absolute;top:12px;left:12px;background:rgba(11,18,32,.88);
+       border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:11.5px;
+       backdrop-filter:blur(8px);line-height:1.7}
+  #hud b{font-variant-numeric:tabular-nums}
+  kbd{background:#1d2b4a;border:1px solid var(--line);border-bottom-width:2px;
+      border-radius:4px;padding:1px 5px;font-size:10px;font-family:inherit}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hud">
+      <div>Cell <b id="hCell">—</b></div>
+      <div>Steps in cell <b id="hSteps">0</b> / <span id="hNeedS">120</span></div>
+      <div>Distance <b id="hDist">0</b> m / <span id="hNeedD">80</span></div>
+      <div>Dwell <b id="hDwell">0</b> s / <span id="hNeedW">90</span></div>
+      <div style="color:var(--dim);margin-top:5px">
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or drag to walk
+      </div>
+    </div>
+  </div>
+
+  <div id="side">
+    <h1>Terrastep</h1>
+    <div class="sub">Claim-loop prototype. Hex grid, effort accumulation,
+      half-life decay and contest hysteresis — the exact rules from
+      <code>02_CLAIM_ENGINE.sql</code>, running client-side.</div>
+
+    <div class="card">
+      <h2>Current cell progress</h2>
+      <div class="row"><span>Effort</span><b id="pEffort">0</b></div>
+      <div class="bar"><i id="pBar" style="width:0%"></i></div>
+      <div class="row" style="margin-top:7px"><span>My influence here</span><b id="pMine">0</b></div>
+      <div class="row"><span>Owner</span><b id="pOwner">neutral</b></div>
+      <div class="row"><span>Effort to capture</span><b id="pNeed">—</b></div>
+    </div>
+
+    <div class="card">
+      <h2>My empire</h2>
+      <div class="row"><span>Cells owned</span><b id="sCells">0</b></div>
+      <div class="row"><span>Total steps</span><b id="sSteps">0</b></div>
+      <div class="row"><span>Distance</span><b id="sDist">0 m</b></div>
+      <div class="row"><span>Area controlled</span><b id="sArea">0.00 km²</b></div>
+    </div>
+
+    <div class="card">
+      <h2>Simulation</h2>
+      <div class="row"><span>Time scale</span><b id="sSpeed">1×</b></div>
+      <input type="range" id="rSpeed" min="1" max="60" value="1">
+      <div class="hint">Accelerates decay so you can watch territory rot.
+        Half-life is 7 days.</div>
+      <button id="bAuto">▶ Auto-walk</button>
+      <button id="bRivals">Spawn 2 rival walkers</button>
+      <button id="bDay">⏩ Skip 3 days (decay)</button>
+      <button class="danger" id="bReset">Reset world</button>
+    </div>
+
+    <div class="card">
+      <h2>Legend</h2>
+      <div class="legend"><span class="sw" style="background:#3b82f6"></span>Yours</div>
+      <div class="legend"><span class="sw" style="background:#ef4444"></span>Rival — Zara</div>
+      <div class="legend"><span class="sw" style="background:#f59e0b"></span>Rival — Bilal</div>
+      <div class="legend"><span class="sw" style="background:#1e2a44"></span>Neutral</div>
+      <div class="legend"><span class="sw" style="background:repeating-linear-gradient(45deg,#3b82f6,#3b82f6 3px,#ef4444 3px,#ef4444 6px)"></span>Contested</div>
+      <div class="hint">Fill opacity = current influence after decay.</div>
+    </div>
+
+    <div class="card">
+      <h2>Event log</h2>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================================================================
+   TERRASTEP PROTOTYPE
+   ---------------------------------------------------------------------------
+   This is a faithful, dependency-free simulation of the server rules in
+   02_CLAIM_ENGINE.sql. It uses a flat-top axial hex grid instead of real H3 so
+   it runs offline with zero external libraries, but the CLAIM / CONTEST / DECAY
+   maths is identical to the SQL. Port the constants, not the hex code.
+   =========================================================================== */
+
+// ---- GAME CONFIG (mirrors the game_config table) --------------------------
+const CFG = {
+  claimMinSteps:      120,
+  claimMinDistanceM:  80,
+  claimMinDwellS:     90,
+  claimMinFixes:      5,
+  effortStepWeight:   1.00,
+  effortDistWeight:   0.35,
+  effortDwellWeight:  0.05,
+  maxEffortPerVisit:  600,
+  decayHalfLifeDays:  7,
+  neutralFloor:       100,
+  takeoverMultiplier: 1.15,
+  takeoverFlatMargin: 50,
+  hexAreaKm2:         0.105,   // H3 res 9
+};
+
+const PLAYERS = {
+  me:    { id:'me',    name:'You',   color:'#3b82f6' },
+  zara:  { id:'zara',  name:'Zara',  color:'#ef4444' },
+  bilal: { id:'bilal', name:'Bilal', color:'#f59e0b' },
+};
+
+// ---- HEX GRID (flat-top axial) --------------------------------------------
+const HEX_R = 46;                         // px radius, stands in for ~174 m edge
+const SQ3 = Math.sqrt(3);
+const M_PER_PX = 174 / HEX_R;             // scale so a hex ≈ H3 res-9 size
+
+function pixToAxial(x, y){
+  const q = (2/3 * x) / HEX_R;
+  const r = (-1/3 * x + SQ3/3 * y) / HEX_R;
+  return axialRound(q, r);
+}
+function axialToPix(q, r){
+  return { x: HEX_R * 1.5 * q, y: HEX_R * (SQ3 * (r + q/2)) };
+}
+function axialRound(q, r){
+  let s = -q - r;
+  let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s);
+  const dq = Math.abs(rq-q), dr = Math.abs(rr-r), ds = Math.abs(rs-s);
+  if (dq > dr && dq > ds) rq = -rr - rs;
+  else if (dr > ds)       rr = -rq - rs;
+  return { q: rq, r: rr };
+}
+const key = (q,r) => q + ',' + r;
+function hexCorners(q, r){
+  const c = axialToPix(q, r), pts = [];
+  for (let i = 0; i < 6; i++){
+    const a = Math.PI / 180 * (60 * i);
+    pts.push([c.x + HEX_R * Math.cos(a), c.y + HEX_R * Math.sin(a)]);
+  }
+  return pts;
+}
+
+// ---- WORLD STATE ----------------------------------------------------------
+let now = Date.now();                 // simulated clock (ms)
+let timeScale = 1;
+let territories = new Map();          // key -> {owner, influence, influenceAt, claimCount}
+let influenceMap = new Map();         // "player|key" -> {influence, influenceAt}
+let stats = { me:{cells:0, steps:0, dist:0} };
+
+// per-player accumulator for the cell they're standing in
+function newAcc(){ return {cell:null, steps:0, dist:0, dwell:0, fixes:0}; }
+
+const walkers = {
+  me: { x:0, y:0, acc:newAcc(), auto:false, target:null, active:true }
+};
+
+// ---- CORE RULES (identical maths to the SQL) ------------------------------
+function currentInfluence(inf, at){
+  const days = (now - at) / 86400000;
+  return inf * Math.pow(0.5, days / CFG.decayHalfLifeDays);
+}
+function computeEffort(steps, dist, dwell){
+  return Math.min(CFG.maxEffortPerVisit,
+    steps * CFG.effortStepWeight +
+    dist  * CFG.effortDistWeight +
+    dwell * CFG.effortDwellWeight);
+}
+function meetsFloors(a){
+  return a.steps >= CFG.claimMinSteps
+      && a.dist  >= CFG.claimMinDistanceM
+      && a.dwell >= CFG.claimMinDwellS
+      && a.fixes >= CFG.claimMinFixes;
+}
+
+/** The claim_cells RPC, in miniature. */
+function submitClaim(playerId, cellKey, acc){
+  if (!meetsFloors(acc)) return null;
+
+  // R6: step/distance ratio sanity — the strongest anti-cheat rule
+  const ratio = acc.dist / Math.max(acc.steps, 1);
+  if (ratio < 0.30) { log(playerId, cellKey, 'rejected', 'steps_without_distance'); return null; }
+  if (ratio > 1.60) { log(playerId, cellKey, 'rejected', 'distance_without_steps'); return null; }
+
+  const effort = computeEffort(acc.steps, acc.dist, acc.dwell);
+
+  // upsert my influence with lazy decay applied to the previous value
+  const ik = playerId + '|' + cellKey;
+  const prev = influenceMap.get(ik);
+  const mine = (prev ? currentInfluence(prev.influence, prev.influenceAt) : 0) + effort;
+  influenceMap.set(ik, { influence: mine, influenceAt: now });
+
+  const t = territories.get(cellKey);
+  let outcome;
+
+  if (!t || !t.owner){
+    territories.set(cellKey,
+      { owner: playerId, influence: mine, influenceAt: now, claimCount: 1 });
+    outcome = 'claimed';
+  } else if (t.owner === playerId){
+    t.influence = mine; t.influenceAt = now;
+    outcome = 'reinforced';
+  } else {
+    const ownerInf = currentInfluence(t.influence, t.influenceAt);
+    const bar = ownerInf * CFG.takeoverMultiplier + CFG.takeoverFlatMargin;
+    if (mine > bar){
+      t.owner = playerId; t.influence = mine; t.influenceAt = now;
+      t.claimCount++;
+      outcome = 'captured';
+    } else {
+      outcome = 'contested';
+    }
+  }
+
+  if (playerId === 'me'){
+    stats.me.steps += acc.steps;
+    stats.me.dist  += acc.dist;
+  }
+  log(playerId, cellKey, outcome);
+  Object.assign(acc, newAcc(), { cell: cellKey });   // reset, stay in cell
+  return outcome;
+}
+
+/** Nightly prune + neutral reversion. */
+function applyDecay(){
+  for (const [k, t] of territories){
+    if (!t.owner) continue;
+    if (currentInfluence(t.influence, t.influenceAt) < CFG.neutralFloor){
+      log(t.owner, k, 'decayed');
+      territories.delete(k);
+    }
+  }
+  for (const [ik, v] of influenceMap){
+    if (currentInfluence(v.influence, v.influenceAt) < 5) influenceMap.delete(ik);
+  }
+}
+
+// ---- MOVEMENT & ACCUMULATION ----------------------------------------------
+function stepWalker(w, id, dt /*sim seconds*/, dx, dy){
+  const moved = Math.hypot(dx, dy) * M_PER_PX;
+  w.x += dx; w.y += dy;
+
+  const ax = pixToAxial(w.x, w.y);
+  const k  = key(ax.q, ax.r);
+
+  if (w.acc.cell !== k){
+    // crossed a boundary: submit whatever we accumulated, start fresh
+    if (w.acc.cell) submitClaim(id, w.acc.cell, w.acc);
+    w.acc = newAcc();
+    w.acc.cell = k;
+  }
+  w.acc.dwell += dt;
+  w.acc.fixes += 1;
+  if (moved > 0.4){
+    w.acc.dist  += moved;
+    w.acc.steps += Math.round(moved / 0.75);     // ~0.75 m stride
+  }
+  // auto-submit as soon as floors are met (like readyToSubmit())
+  if (meetsFloors(w.acc)) submitClaim(id, k, w.acc);
+}
+
+// ---- RENDER ----------------------------------------------------------------
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let cam = {x:0, y:0}, DPR = window.devicePixelRatio || 1;
+
+function resize(){
+  cv.width = cv.clientWidth * DPR; cv.height = cv.clientHeight * DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize); resize();
+
+function hexPath(q, r){
+  const pts = hexCorners(q, r);
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0]-cam.x, pts[0][1]-cam.y);
+  for (let i=1;i<6;i++) ctx.lineTo(pts[i][0]-cam.x, pts[i][1]-cam.y);
+  ctx.closePath();
+}
+
+function draw(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cam.x = walkers.me.x - W/2; cam.y = walkers.me.y - H/2;
+  ctx.clearRect(0,0,W,H);
+
+  // which hexes are in view
+  const pad = HEX_R*2;
+  const a = pixToAxial(cam.x-pad, cam.y-pad);
+  const b = pixToAxial(cam.x+W+pad, cam.y+H+pad);
+  const qs = [a.q-2, b.q+2], rs = [a.r-2, b.r+3];
+
+  for (let q=qs[0]; q<=qs[1]; q++){
+    for (let r=rs[0]-Math.floor(q/2); r<=rs[1]; r++){
+      const c = axialToPix(q,r);
+      if (c.x < cam.x-pad || c.x > cam.x+W+pad || c.y < cam.y-pad || c.y > cam.y+H+pad) continue;
+      const k = key(q,r);
+      const t = territories.get(k);
+      hexPath(q,r);
+
+      if (t && t.owner){
+        const inf = currentInfluence(t.influence, t.influenceAt);
+        const strength = Math.min(1, inf / 600);
+        const col = PLAYERS[t.owner].color;
+
+        // is it contested? another player has >30% of the owner's influence
+        let challenger = null, chalInf = 0;
+        for (const p of Object.keys(PLAYERS)){
+          if (p === t.owner) continue;
+          const v = influenceMap.get(p+'|'+k);
+          if (v){ const ci = currentInfluence(v.influence, v.influenceAt);
+                  if (ci > chalInf){ chalInf = ci; challenger = p; } }
+        }
+        const contested = challenger && chalInf > inf * 0.30;
+
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.15 + 0.55*strength;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        if (contested){                       // hatch overlay
+          ctx.save(); ctx.clip();
+          ctx.strokeStyle = PLAYERS[challenger].color;
+          ctx.globalAlpha = .55; ctx.lineWidth = 3;
+          for (let i=-60;i<70;i+=9){
+            ctx.beginPath();
+            ctx.moveTo(c.x-cam.x+i, c.y-cam.y-60);
+            ctx.lineTo(c.x-cam.x+i+60, c.y-cam.y+60);
+            ctx.stroke();
+          }
+          ctx.restore(); ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = col; ctx.lineWidth = 2;
+      } else {
+        ctx.fillStyle = '#131e36'; ctx.fill();
+        ctx.strokeStyle = '#22304e'; ctx.lineWidth = 1;
+      }
+      ctx.stroke();
+    }
+  }
+
+  // walkers
+  for (const [id,w] of Object.entries(walkers)){
+    if (!w.active) continue;
+    const p = PLAYERS[id];
+    ctx.beginPath();
+    ctx.arc(w.x-cam.x, w.y-cam.y, 7, 0, Math.PI*2);
+    ctx.fillStyle = p.color; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+    if (id !== 'me'){
+      ctx.fillStyle = '#e6edf7'; ctx.font = '600 11px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.name, w.x-cam.x, w.y-cam.y-13);
+    }
+  }
+}
+
+// ---- HUD -------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+function updateHUD(){
+  const w = walkers.me, a = w.acc;
+  $('hCell').textContent  = a.cell || '—';
+  $('hSteps').textContent = a.steps;
+  $('hDist').textContent  = Math.round(a.dist);
+  $('hDwell').textContent = Math.round(a.dwell);
+  $('hNeedS').textContent = CFG.claimMinSteps;
+  $('hNeedD').textContent = CFG.claimMinDistanceM;
+  $('hNeedW').textContent = CFG.claimMinDwellS;
+
+  const eff = computeEffort(a.steps, a.dist, a.dwell);
+  $('pEffort').textContent = Math.round(eff);
+  const prog = Math.min(1,
+    (Math.min(a.steps/CFG.claimMinSteps,1) +
+     Math.min(a.dist /CFG.claimMinDistanceM,1) +
+     Math.min(a.dwell/CFG.claimMinDwellS,1)) / 3);
+  $('pBar').style.width = (prog*100).toFixed(0) + '%';
+  $('pBar').style.background = prog >= 1 ? '#22c55e' : '#3b82f6';
+
+  const k = a.cell;
+  const mineRec = k ? influenceMap.get('me|'+k) : null;
+  const mine = mineRec ? currentInfluence(mineRec.influence, mineRec.influenceAt) : 0;
+  $('pMine').textContent = Math.round(mine);
+
+  const t = k ? territories.get(k) : null;
+  if (t && t.owner){
+    const oi = currentInfluence(t.influence, t.influenceAt);
+    $('pOwner').textContent = PLAYERS[t.owner].name + ' (' + Math.round(oi) + ')';
+    $('pOwner').style.color = PLAYERS[t.owner].color;
+    $('pNeed').textContent = t.owner === 'me' ? '— owned —'
+      : Math.max(0, Math.round(oi*CFG.takeoverMultiplier + CFG.takeoverFlatMargin - mine));
+  } else {
+    $('pOwner').textContent = 'neutral';
+    $('pOwner').style.color = 'var(--dim)';
+    $('pNeed').textContent = '—';
+  }
+
+  let cells = 0;
+  for (const t2 of territories.values()) if (t2.owner === 'me') cells++;
+  stats.me.cells = cells;
+  $('sCells').textContent = cells;
+  $('sSteps').textContent = stats.me.steps.toLocaleString();
+  $('sDist').textContent  = stats.me.dist > 1000
+      ? (stats.me.dist/1000).toFixed(2)+' km' : Math.round(stats.me.dist)+' m';
+  $('sArea').textContent  = (cells * CFG.hexAreaKm2).toFixed(2) + ' km²';
+}
+
+const logEl = $('log');
+function log(player, cell, outcome, reason){
+  const tags = {claimed:'t-claim', captured:'t-cap', rejected:'t-rej',
+                reinforced:'t-rein', contested:'t-rein', decayed:'t-rej'};
+  if (outcome === 'reinforced' && Math.random() > 0.25) return;  // reduce noise
+  const d = document.createElement('div');
+  d.innerHTML = '<span class="tag '+(tags[outcome]||'t-rein')+'">'+outcome+'</span>'
+              + '<span style="color:'+PLAYERS[player].color+'">'+PLAYERS[player].name+'</span> '
+              + cell + (reason ? ' · '+reason : '');
+  logEl.prepend(d);
+  while (logEl.children.length > 60) logEl.lastChild.remove();
+}
+
+// ---- INPUT -----------------------------------------------------------------
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))
+    e.preventDefault();
+});
+addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+let dragging = false, dragTarget = null;
+cv.addEventListener('pointerdown', e => {
+  dragging = true;
+  dragTarget = { x: e.offsetX + cam.x, y: e.offsetY + cam.y };
+});
+cv.addEventListener('pointermove', e => {
+  if (dragging) dragTarget = { x: e.offsetX + cam.x, y: e.offsetY + cam.y };
+});
+addEventListener('pointerup', () => { dragging = false; dragTarget = null; });
+
+// ---- CONTROLS --------------------------------------------------------------
+$('rSpeed').addEventListener('input', e => {
+  timeScale = +e.target.value;
+  $('sSpeed').textContent = timeScale + '×';
+});
+$('bAuto').addEventListener('click', () => {
+  walkers.me.auto = !walkers.me.auto;
+  $('bAuto').textContent = walkers.me.auto ? '⏸ Stop auto-walk' : '▶ Auto-walk';
+  $('bAuto').className = walkers.me.auto ? 'primary' : '';
+});
+$('bRivals').addEventListener('click', () => {
+  for (const [id, off] of [['zara',[260,-140]], ['bilal',[-300,190]]]){
+    if (walkers[id]) continue;
+    walkers[id] = { x: walkers.me.x+off[0], y: walkers.me.y+off[1],
+                    acc:newAcc(), auto:true, target:null, active:true };
+  }
+  $('bRivals').textContent = 'Rivals active';
+  $('bRivals').disabled = true;
+});
+$('bDay').addEventListener('click', () => {
+  now += 3 * 86400000;
+  applyDecay();
+  log('me','world','decayed','+3 days elapsed');
+});
+$('bReset').addEventListener('click', () => {
+  territories.clear(); influenceMap.clear();
+  stats.me = {cells:0, steps:0, dist:0};
+  for (const id of Object.keys(walkers)){ if(id!=='me') delete walkers[id]; }
+  walkers.me = {x:0,y:0,acc:newAcc(),auto:false,target:null,active:true};
+  logEl.innerHTML = '';
+  $('bRivals').textContent = 'Spawn 2 rival walkers';
+  $('bRivals').disabled = false;
+  $('bAuto').textContent = '▶ Auto-walk'; $('bAuto').className = '';
+});
+
+// ---- MAIN LOOP -------------------------------------------------------------
+let last = performance.now();
+const SPEED_PX = 55;          // px/sec ≈ 1.4 m/s walking pace at M_PER_PX
+
+function pickTarget(w){
+  const ang = Math.random()*Math.PI*2, dist = 180 + Math.random()*300;
+  return { x: w.x + Math.cos(ang)*dist, y: w.y + Math.sin(ang)*dist };
+}
+
+function tick(t){
+  const realDt = Math.min((t - last)/1000, 0.1);
+  last = t;
+  const simDt = realDt * timeScale;
+  now += simDt * 1000;
+
+  // --- my walker
+  const w = walkers.me;
+  let dx = 0, dy = 0;
+  if (keys.w || keys.arrowup)    dy -= 1;
+  if (keys.s || keys.arrowdown)  dy += 1;
+  if (keys.a || keys.arrowleft)  dx -= 1;
+  if (keys.d || keys.arrowright) dx += 1;
+
+  if (dragTarget){
+    const vx = dragTarget.x - w.x, vy = dragTarget.y - w.y;
+    const m = Math.hypot(vx,vy);
+    if (m > 4){ dx = vx/m; dy = vy/m; }
+  } else if (w.auto && !dx && !dy){
+    if (!w.target || Math.hypot(w.target.x-w.x, w.target.y-w.y) < 12) w.target = pickTarget(w);
+    const vx = w.target.x-w.x, vy = w.target.y-w.y, m = Math.hypot(vx,vy);
+    dx = vx/m; dy = vy/m;
+  }
+  const mag = Math.hypot(dx,dy);
+  if (mag > 0){ dx = dx/mag*SPEED_PX*realDt*Math.min(timeScale,8);
+                dy = dy/mag*SPEED_PX*realDt*Math.min(timeScale,8); }
+  stepWalker(w, 'me', simDt, dx, dy);
+
+  // --- rivals
+  for (const [id, rw] of Object.entries(walkers)){
+    if (id === 'me') continue;
+    if (!rw.target || Math.hypot(rw.target.x-rw.x, rw.target.y-rw.y) < 12) rw.target = pickTarget(rw);
+    const vx = rw.target.x-rw.x, vy = rw.target.y-rw.y, m = Math.hypot(vx,vy);
+    const s = SPEED_PX*realDt*Math.min(timeScale,8);
+    stepWalker(rw, id, simDt, vx/m*s, vy/m*s);
+  }
+
+  // periodic decay sweep (once per simulated day)
+  if (!tick.lastSweep || now - tick.lastSweep > 86400000){
+    tick.lastSweep = now; applyDecay();
+  }
+
+  draw(); updateHUD();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

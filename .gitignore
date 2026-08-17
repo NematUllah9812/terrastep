@@ -1,0 +1,39 @@
+# --- secrets: never commit these -------------------------------------------
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+supabase/.temp/
+**/service_role*
+**/.netrc
+
+# --- local Postgres test artefacts ------------------------------------------
+/tmp/
+*.log
+pgdata/
+terrastep_pg/
+
+# --- Flutter / Dart (for when Phase 1 lands here) ---------------------------
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+android/.gradle/
+android/local.properties
+android/key.properties
+*.iml
+*.jks
+*.keystore
+
+# --- editors / OS -----------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
