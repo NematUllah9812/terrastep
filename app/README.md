@@ -10,8 +10,8 @@ This package is the shell: sensors, map, UI.
 
 ## Getting the APK on your phone
 
-**You do not need Flutter installed.** Every push builds an APK on GitHub's
-runners.
+A 45 MB arm64 debug APK was built on 2026-08-18 (Flutter 3.27.4). Download
+`Terrastep-debug.apk` from this workspace, or let GitHub rebuild it:
 
 1. Open the repo → **Actions** tab (works in the GitHub mobile app)
 2. Newest **Build Android APK** run
@@ -19,7 +19,7 @@ runners.
 4. Unzip, tap the `.apk`, allow *install from unknown sources*
 
 You can also trigger a build by hand: Actions → Build Android APK → **Run
-workflow**.
+workflow**. The workflow pins Flutter **3.27.4** (see ISSUES_LOG #23).
 
 > Debug build, so it is unsigned and larger than a release build. Fine for
 > testing; not for the Play Store.
@@ -45,7 +45,8 @@ Features:
 - Walk to claim: 120 steps **and** 80 m **and** 90 s **and** 5 GPS fixes
 - Claimed hexes persist across app restarts
 - **Debug overlay** — the most important part. Live steps, distance, dwell,
-  GPS accuracy, motion state, and a count of every rejected fix by reason.
+  GPS accuracy, motion state, rejected-fix counts, **battery %**, and
+  session elapsed time. Tap the copy icon to dump the same numbers.
 
 ### What to report back
 
@@ -57,7 +58,7 @@ Screenshot the debug overlay during a walk, and note:
 | `m/step` value while walking | Server rejects outside 0.30–1.60 (rule R6) |
 | `gps acc` typical value | If routinely >35 m, the accuracy gate is too strict |
 | Rejected-fix counts | Non-zero `poor acc` or `teleport` means filter tuning |
-| `pedometer` says ok or NO SENSOR | Some devices lack a step counter |
+| `pedometer` says ok / EST. from dist / waiting | Hardware vs. stride fallback (#25) |
 | **Battery % over 15-20 min, screen ON** | Foreground drain (see caveat below) |
 
 ---

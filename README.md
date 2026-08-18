@@ -37,9 +37,9 @@ All 48 pass.
 
 ### 0. Get the APK on your Android phone
 
-Repo → **Actions** → newest *Build Android APK* → **Artifacts** →
-`terrastep-debug-apk`. No Flutter install needed; GitHub builds it.
-Details in [`app/README.md`](app/README.md).
+A debug APK is built. Download `Terrastep-debug.apk` from the workspace,
+or: repo → **Actions** → newest *Build Android APK* → **Artifacts** →
+`terrastep-debug-apk`. Details in [`app/README.md`](app/README.md).
 
 ### 1. Play the browser prototype (30 seconds)
 

@@ -2,12 +2,14 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest commit:** `7d290dd` — pinned plugin versions after the first APK build failed
-**Next deliverable:** a green APK build, then your device test (§0b)
+**Latest commit:** (this one) — first green APK, built locally
+**Next deliverable:** install the APK and walk a block (§0b)
 
-**Build status:** attempt #1 failed on dependency resolution (ISSUES_LOG #22);
-versions now verified against pub.dev and the toolchain pinned. Attempt #2
-pushed — **unconfirmed at time of writing.**
+**Build status:** ✅ **APK built.** `Terrastep-debug.apk` (45 MB, arm64 debug).
+Analyzer clean. `libh3.so` + `libflutter.so` packed. Attempt #1 died on
+open carets (#22). Attempt #2 would have died on the Dart 3.5/3.6 gap
+around `h3_flutter` 0.7.x (#23). Toolchain is now Flutter **3.27.4**
+(Dart 3.6.2).
 
 > **Resuming on a new machine?** Read §0 below, then `ISSUES_LOG.md`
 > "Recurring Patterns". The sandbox/toolchain is ephemeral — expect to
@@ -17,18 +19,31 @@ pushed — **unconfirmed at time of writing.**
 
 ## 0b. Get the APK
 
-**Built on GitHub's runners, not locally.** The sandbox has 2 GB RAM and Gradle
-wants more, so `.github/workflows/build-apk.yml` builds it on GitHub and
-publishes a downloadable artifact. Better anyway: reproducible, survives sandbox
-resets, rebuilds on every push.
+**A debug APK exists.** Built locally on 2026-08-18 against Flutter 3.27.4 /
+Dart 3.6.2 / JDK 17 / compileSdk 35. 45 MB, `arm64-v8a` (every phone we
+care about for this test). GitHub Actions will rebuild it on the next push
+that touches `app/` (workflow now pins 3.27.4, not 3.24.5).
 
-**To install:** repo → **Actions** → newest *Build Android APK* → **Artifacts**
-→ `terrastep-debug-apk` → unzip → tap the `.apk` → allow unknown sources.
+**To install, pick one:**
+
+1. **This workspace** — download `Terrastep-debug.apk`, copy to the phone,
+   tap it, allow *install from unknown sources*.
+2. **GitHub Actions** — repo → **Actions** → newest *Build Android APK* →
+   **Artifacts** → `terrastep-debug-apk` → unzip → tap the `.apk`.
 
 **What it does:** OSM map, live position, real H3 res-9 hexes, walk-to-claim
 (120 steps AND 80 m AND 90 s AND 5 fixes), persistent territory, and a debug
-overlay showing every sensor value plus rejected-fix counts. Fully offline —
-no account, no server.
+overlay showing every sensor value, rejected-fix counts, **live battery %**,
+and session elapsed time. Fully offline — no account, no server.
+
+**New in this build (vs. the unbuilt source):**
+- Runtime `ACTIVITY_RECOGNITION` request, otherwise the pedometer is silent
+  on Android 10+ and no hex can ever fill.
+- Stride-estimated steps after 8 s with no hardware counter, so a device
+  without a pedometer can still exercise the claim loop. Overlay says
+  `EST. from dist` in that case.
+- Copy-to-clipboard dump on the overlay (tap the copy icon).
+- Claimed hexes stay drawn after you walk out of the 2-ring window.
 
 **What we need from the test** — this is the whole point:
 
@@ -107,21 +122,21 @@ The prototype needs nothing — open `prototype/index.html` in any browser.
 
 ## 1. Honest Summary
 
-**Where we are: the design is complete and the server-side game logic is built
-and verified. No mobile app exists yet.**
+**Where we are: the referee is finished and tested, and there is now a
+holdable game — a debug APK that claims hexes offline. It has not been
+walked on a real phone yet.**
 
-The backend is genuinely working code, not pseudocode — Postgres 17 was stood up
-locally, the real schema and claim engine were applied, and 48 behavioural
-assertions pass covering claiming, contesting, hysteresis, decay, idempotency,
-teleport rejection and shadow-banning.
+The backend is genuinely working code, not pseudocode — 48 behavioural
+assertions pass covering claiming, contesting, hysteresis, decay,
+idempotency, teleport rejection and shadow-banning.
 
-What has *not* started is the entire client: no Flutter project, no GPS, no
-step counting, no map, no battery testing. That is the majority of the remaining
-work and contains the single riskiest unknown in the project (background
-tracking battery drain).
+The client is past "not started". Sensors, map, H3, local persist and the
+debug overlay compile into an installable APK. What has *not* happened is
+the only test that matters: a human walking a block with the screen on,
+then (later) a 30-minute pocket test with a foreground service.
 
-**A useful way to think about it:** the "referee" is finished and tested. The
-"game" — the thing a user actually holds — has not been started.
+**A useful way to think about it:** the referee is done. The board exists.
+We have not yet played a real game on it.
 
 | | Status |
 |---|---|
@@ -130,8 +145,8 @@ tracking battery drain).
 | Claim/contest/decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
 | Supabase deployment | ❌ Not done (tested locally only) |
-| Flutter app | ❌ Not started |
-| Real GPS / steps / battery | ❌ Not started |
+| Flutter app | 🟡 Compiles; needs a device walk |
+| Real GPS / steps / battery | 🟡 Instrumented, unmeasured |
 | Store submission | ❌ Not started |
 
 ---
@@ -140,26 +155,26 @@ tracking battery drain).
 
 Legend: ✅ done & verified · 🟡 partial · ⬜ not started
 
-### PHASE 0 — De-risk Spike *(0 / 3)*
+### PHASE 0 — De-risk Spike *(0 / 3, 2 waiting on a walk)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 0.1 | Flutter + MapLibre basemap + blue dot | ⬜ | Not started |
-| 0.2 | h3_flutter returns res-9 cell; hexes drawn | ⬜ | Hex maths proven in the JS prototype, but not in Flutter/H3 |
-| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **The GO/NO-GO gate. Highest project risk.** |
+| 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | **Compiles.** flutter_map + OSM + blue dot in the APK. Not MapLibre (see #21). Needs a device to confirm the tiles load and the dot tracks. |
+| 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | **Compiles.** Real `h3_flutter` 0.7.1, hex ids padded to 15 chars to match h3-js. Still unverified against h3-js on a known coordinate (O9). |
+| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **The GO/NO-GO gate.** This build is foreground-only. Do the screen-on walk first; the pocket test waits on O11. |
 
-### PHASE 1 — Local Prototype *(0 / 8, 1 partial credit)*
+### PHASE 1 — Local Prototype *(1 / 8, 6 waiting on a walk)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 1.1 | Map basemap | 🟡 | flutter_map + OSM tiles written; **needs on-device verification** |
-| 1.2 | Location permissions | 🟡 | Android flow implemented (`main.dart`); needs device test |
-| 1.3 | H3 integration | 🟡 | `H3Indexer` written against the `CellIndexer` seam; **unverified against h3-js** |
-| 1.4 | Hex grid overlay | 🟡 | Real H3 polygons via `PolygonLayer`; needs device test |
-| 1.5 | Step source (HealthKit / Health Connect) | ⬜ | Packages selected, code sketched |
-| 1.6 | `SessionAccumulator` + 6 unit tests | ✅ | **Implemented and verified: 27/27 passing.** Pure Dart in `app/lib/domain/`. Found and fixed a cell-claiming exploit (ISSUES_LOG #17) |
+| 1.1 | Map basemap | 🟡 | flutter_map + OSM tiles compile; **needs on-device verification** |
+| 1.2 | Location permissions | 🟡 | Android flow + ACTIVITY_RECOGNITION implemented; needs device test |
+| 1.3 | H3 integration | 🟡 | `H3Indexer` against the `CellIndexer` seam; **unverified against h3-js** |
+| 1.4 | Hex grid overlay | 🟡 | Real H3 polygons via `PolygonLayer`; claimed hexes persist on the map |
+| 1.5 | Step source (HealthKit / Health Connect) | 🟡 | Hardware pedometer wired; Health Connect still later. Falls back to 0.78 m stride if no sensor. |
+| 1.6 | `SessionAccumulator` + 6 unit tests | ✅ | **Implemented and verified: 27/27 passing.** Pure Dart. Found and fixed a cell-claiming exploit (ISSUES_LOG #17) |
 | 1.7 | Local claim + persist | 🟡 | Claim + SharedPreferences persistence written; needs device test |
-| 1.8 | Background survival, <4%/hr | ⬜ | **Boss fight of Phase 1** |
+| 1.8 | Background survival, <4%/hr | ⬜ | **Boss fight of Phase 1.** Foreground service not implemented (O11). |
 
 ### PHASE 2 — Backend & Persistence *(3 / 9)*
 
@@ -211,16 +226,19 @@ All ⬜. Not started.
 
 | Phase | ✅ Done | 🟡 Partial | ⬜ Not started | Total |
 |---|---|---|---|---|
-| 0 — Spike | 0 | 0 | 3 | 3 |
+| 0 — Spike | 0 | 2 | 1 | 3 |
 | 1 — Prototype | 1 | 6 | 1 | 8 |
 | 2 — Backend | 4 | 4 | 1 | 9 |
 | 3 — Multiplayer | 2 | 4 | 2 | 8 |
 | 4 — Anti-cheat | 3 | 4 | 1 | 8 |
 | 5 — Launch | 0 | 0 | 9 | 9 |
-| **Total** | **10** | **18** | **17** | **45** |
+| **Total** | **10** | **20** | **15** | **45** |
 
 **Fully complete: 10 / 45 (22%).**
-Counting partials at half credit: ~19 / 45 (**~42%**).
+Counting partials at half credit: ~20 / 45 (**~44%**).
+The percentage barely moved because the APK is *instrumentation*, not
+acceptance. 0.1 / 0.2 / 1.1–1.5 / 1.7 flip to ✅ the moment a hex fills
+on a real sidewalk.
 
 **Hours burned vs. estimate:** roughly 30–35 h of the ~215 h estimate — but
 weighted heavily toward design, which front-loads. The remaining work is more
@@ -312,6 +330,7 @@ re-checked on real Supabase:
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-18 | **First green APK.** Flutter 3.27.4, 45 MB arm64 debug, analyzer clean, `libh3.so` packed. Fixed the Dart 3.5/3.6 hole that would have killed attempt #2 (`h3_flutter` 0.7 → `h3_web` → `js` 0.7.2). Added ACTIVITY_RECOGNITION, stride-estimated steps, live battery %, overlay copy-dump. | #23, #24, #25 |
 | 2026-08-18 | **APK build #1 failed** on dependency resolution. Plugin versions were written from memory with open carets; `^8.10.4` resolved to a release needing Flutter 3.38. Pinned every version against the pub.dev API, pinned the toolchain to 3.24.5, dropped 2 unused plugins, made `terrastep_core` zero-dep. Added failure diagnostics to the run summary. | #22 |
 | 2026-08-18 | **Android app + APK CI.** Split pure logic into `packages/terrastep_core` (43 tests, stays Flutter-free) and added the `app/` Flutter package: H3Indexer, adaptive LocationService, StepService, TrackingCoordinator, map + debug overlay. GitHub Actions builds the APK on their runners. | — |
 | 2026-08-18 | **Threshold 2.6 logic complete.** Outbox + SyncWorker with batching, exponential backoff, idempotent retries. 43 client tests. Fixed a rate-limit bug that could shadow-ban a heavy walker. | #19 |

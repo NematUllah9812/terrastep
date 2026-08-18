@@ -42,10 +42,13 @@ jobs:
       # carets resolved plugins needing a newer Flutter than the runner had
       # (ISSUES_LOG #22). A moving toolchain plus moving deps means a build
       # that works today can break tomorrow with no commit in between.
-      - name: Set up Flutter 3.24.5
+      # 3.24.5 has Dart 3.5.4 and cannot resolve h3_flutter 0.7.x
+      # (h3_web needs Dart 3.6). 3.27.4 is the oldest pin that can.
+      # See ISSUES_LOG #23.
+      - name: Set up Flutter 3.27.4
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
+          flutter-version: '3.27.4'
           channel: stable
           cache: true
 
@@ -64,6 +67,7 @@ jobs:
           flutter create --platforms=android \
             --org io.terrastep --project-name terrastep . 2>&1 | tail -20
           cp /tmp/pubspec.backup pubspec.yaml
+          rm -f test/widget_test.dart
           echo "--- android/ generated ---"
           ls android/app/src/main/
 

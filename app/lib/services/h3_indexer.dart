@@ -18,34 +18,33 @@ class H3Indexer implements CellIndexer {
       : _h3 = const H3Factory().load();
 
   @override
-  String cellFor(double lat, double lng) => _h3
-      .geoToCell(GeoCoord(lat: lat, lon: lng), resolution)
-      .toRadixString(16);
+  String cellFor(double lat, double lng) =>
+      _hex(_h3.geoToCell(GeoCoord(lat: lat, lon: lng), resolution));
 
   @override
-  String parentRes5(String cellId) => _h3
-      .cellToParent(BigInt.parse(cellId, radix: 16), parentResolution)
-      .toRadixString(16);
+  String parentRes5(String cellId) =>
+      _hex(_h3.cellToParent(_parse(cellId), parentResolution));
 
   /// Vertices of a cell, for drawing the hexagon.
   List<GeoCoord> boundary(String cellId) =>
-      _h3.cellToBoundary(BigInt.parse(cellId, radix: 16));
+      _h3.cellToBoundary(_parse(cellId));
 
   /// Centre point of a cell.
-  GeoCoord center(String cellId) =>
-      _h3.cellToGeo(BigInt.parse(cellId, radix: 16));
+  GeoCoord center(String cellId) => _h3.cellToGeo(_parse(cellId));
 
   /// All cells within [ringSize] rings of [cellId], including itself.
   /// Used to draw the grid around the player without querying the whole map.
-  List<String> disk(String cellId, int ringSize) => _h3
-      .gridDisk(BigInt.parse(cellId, radix: 16), ringSize)
-      .map((c) => c.toRadixString(16))
-      .toList();
+  List<String> disk(String cellId, int ringSize) =>
+      _h3.gridDisk(_parse(cellId), ringSize).map(_hex).toList();
 
   /// Hex-grid distance between two cells. Used by the server's path-continuity
   /// check; mirrored here so the client can pre-filter.
-  int gridDistance(String a, String b) => _h3.gridDistance(
-        BigInt.parse(a, radix: 16),
-        BigInt.parse(b, radix: 16),
-      );
+  int gridDistance(String a, String b) =>
+      _h3.gridDistance(_parse(a), _parse(b));
+
+  /// h3-js emits 15-char lowercase hex. `BigInt.toRadixString` drops leading
+  /// zeros, which would desync client cell ids from the server (O9).
+  static String _hex(BigInt c) => c.toRadixString(16).padLeft(15, '0');
+
+  static BigInt _parse(String cellId) => BigInt.parse(cellId, radix: 16);
 }

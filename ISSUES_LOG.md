@@ -619,6 +619,81 @@ pinned toolchain over carets and `stable`.
 
 ---
 
+### #23 🔴 `h3_flutter` 0.7.x cannot resolve on Flutter 3.24.5
+**Symptom** After pinning plugins (#22), `flutter pub get` on the pinned
+toolchain failed with:
+```
+Because h3_flutter >=0.7.0 depends on h3_web >=0.7.0 which requires SDK
+version >=3.6.0 <4.0.0, h3_flutter >=0.7.0 is forbidden.
+```
+Bumping to Flutter 3.27.4 (Dart 3.6.2) then failed one step further:
+```
+h3_web ^0.7.0 depends on js ^0.7.2, and js >=0.7.2 requires SDK ^3.7.0
+```
+
+**Cause** There is no `h3_flutter` that sits on Dart 3.5. 0.6.x is locked
+to Dart 2 (`sdk: <3.0.0`). 0.7.x is the first Dart 3 line, but its own
+`environment.sdk` says `>=3.5.0` while a transitive dep (`h3_web` →
+`js` 0.7.2) needs 3.7. The declared range is a lie.
+
+**Fix** Two things, both required:
+1. Pin the toolchain to **Flutter 3.27.4 / Dart 3.6.2** — the oldest
+   Flutter that can even see `h3_flutter` 0.7.x.
+2. `dependency_overrides: js: 0.7.1` so pub can finish resolving. We
+   never import the web backend on Android; the override exists only to
+   satisfy the solver. `js` 0.7.1 accepts Dart `^3.1.0`.
+
+**Verified** `flutter pub get` succeeds, `flutter analyze` is clean, and
+the debug APK contains `lib/arm64-v8a/libh3.so` (141 KB).
+
+**Prevention** When a plugin's `environment.sdk` looks compatible, still
+walk the *transitive* graph. The hole was two layers down and would have
+burned another CI round-trip. A package's declared SDK range is not a
+promise about its dependencies.
+
+---
+
+### #24 🟢 `Color.withValues` does not exist on Flutter 3.24
+**Symptom** Anticipated while reading the first app sources against the
+then-pinned 3.24.5 toolchain. `Color.withValues(alpha: …)` landed in
+3.27; on 3.24 it is a compile error.
+
+**Cause** Widget code was written against current Flutter muscle memory,
+then the toolchain was pinned *older* to keep plugin versions stable
+(#22). The two decisions fought.
+
+**Fix** Became moot when #23 forced the toolchain to 3.27.4, which has
+`withValues`. Left the call as `withValues` so analyze stays clean.
+
+**Prevention** API surface is a function of the *pinned* SDK, not of
+"what Flutter can do today". After a pin, grep the tree for APIs newer
+than that pin before pushing.
+
+---
+
+### #25 🟡 Pedometer would have been silently empty on Android 10+
+**Symptom** Anticipated. `StepService` listens to
+`Pedometer.stepCountStream` and swallows errors. The claim floors
+require 120 steps. Android 10+ makes `ACTIVITY_RECOGNITION` a runtime
+permission, and neither `pedometer` 4.0.2 nor `geolocator` requests it.
+First walk on a real phone would have shown `NO SENSOR` and no hex
+would ever fill — looking exactly like a logic bug.
+
+**Cause** #22 dropped `permission_handler` because it was unused *for
+location*. That was correct for location and wrong for steps.
+
+**Fix** Brought `permission_handler` 11.3.1 back, requested
+`Permission.activityRecognition` after location (denial is non-fatal),
+and added a stride estimator (0.78 m/step) that kicks in after 8 s
+with no hardware reading. The overlay labels this `EST. from dist`.
+
+**Prevention** A permission in the manifest is not a grant. Every sensor
+behind a runtime permission needs an explicit request, and every
+request needs a defined failure mode that does not look like a logic
+bug.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
@@ -632,7 +707,7 @@ Known problems not yet solved. Carry these forward.
 | O5 | `admin_rollback_user()` untested | 4.8 | Needs a reassignment fixture |
 | O6 | RLS hostile test not written | 2.4 | Needs a real JWT — can't be shimmed |
 | O7 | Background battery drain unmeasured | 0.3 | **Highest project risk — awaiting device test** |
-| O8 | APK still not compiled | 1.1 | First attempt failed on deps (#22). Versions now verified against pub.dev, but no Flutter SDK here to prove the Gradle stage. |
+| O8 | APK still not compiled | 1.1 | **Resolved 2026-08-18.** 45 MB arm64 debug APK built locally on Flutter 3.27.4. `libh3.so` present. Device walk is now the gate, not the compiler. |
 | O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
 | O10 | Anti-drift filter untuned against real GPS | 4.2 | Tuned on synthetic jitter. Real GPS may need a different `_anchorFactor`. |
 | O11 | Foreground service not implemented | 1.8 | Tracking currently stops when the app is backgrounded. Needed for the real battery test. |
@@ -688,3 +763,10 @@ Lessons that keep resurfacing. Read these first if you're resuming.
 12. **Design for unattended failure.** The first APK build failed with an error
     nobody could read from a phone. Diagnostics that surface on the summary
     page cost ten minutes and save every future round-trip (#22).
+13. **A package's declared SDK range is not a promise about its dependencies.**
+    `h3_flutter` 0.7.1 said `>=3.5.0`; two layers down, `js` 0.7.2 needed
+    3.7 (#23). Walk the transitive graph, not just the top-level pubspec.
+14. **A permission in the manifest is not a grant.** Dropping
+    `permission_handler` was right for location and wrong for the
+    pedometer (#25). Every runtime permission needs an explicit request
+    *and* a failure mode that cannot be mistaken for a logic bug.

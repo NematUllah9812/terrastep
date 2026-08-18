@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'services/h3_indexer.dart';
 import 'services/location_service.dart';
@@ -76,6 +78,17 @@ class _BootState extends State<_Boot> {
             : 'Terrastep needs location to award you territory.';
       });
       return;
+    }
+
+    // ACTIVITY_RECOGNITION is a runtime permission on Android 10+. The
+    // pedometer plugin does not request it; without the grant the step
+    // stream is silently empty and no hex can ever be claimed. Denial is
+    // non-fatal — TrackingCoordinator falls back to stride-estimated steps
+    // so a tester without the sensor can still exercise the loop.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await Permission.activityRecognition.request();
+      } catch (_) {}
     }
 
     final t = TrackingCoordinator(

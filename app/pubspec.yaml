@@ -14,7 +14,8 @@ environment:
 # promise that every future major release will still build, which is not a
 # promise these plugins keep. See ISSUES_LOG #22.
 #
-# Verified against pub.dev: every version below builds on Flutter 3.24.x.
+# Toolchain is Flutter 3.27.4 (Dart 3.6.2). 3.24.5 cannot resolve h3_flutter
+# 0.7.x (needs Dart 3.6 via h3_web). See ISSUES_LOG #23.
 
 dependencies:
   flutter:
@@ -31,13 +32,19 @@ dependencies:
   latlong2: ">=0.9.1 <0.10.0"    # flutter_map 7.x requires ^0.9.1
 
   # H3 geospatial indexing (FFI to the reference C library).
+  # 0.7.x is the first line that accepts Dart 3; 0.6.x is locked to Dart 2.
   h3_flutter: ">=0.7.1 <0.8.0"
 
-  # Location + steps. permission_handler is NOT needed: geolocator handles
-  # its own permission requests, and adding an unused plugin only adds
-  # another version to conflict.
+  # Location + steps. geolocator handles its own location permission;
+  # permission_handler is only here for ACTIVITY_RECOGNITION (Android 10+),
+  # which geolocator does not request. Without that grant the pedometer
+  # stream is empty and the claim loop can never fire on a real phone.
   geolocator: ">=13.0.4 <14.0.0"     # 14.x needs a newer AGP
   pedometer: ">=4.0.2 <4.1.0"        # 4.2.0 needs Dart 3.8
+  permission_handler: ">=11.3.1 <11.4.0"  # 11.4+/12+ raise SDK mins
+
+  # Live battery % in the debug overlay — the number threshold 0.3 needs.
+  battery_plus: ">=6.2.1 <7.0.0"
 
   # Local persistence
   shared_preferences: ">=2.3.5 <2.4.0"   # 2.5.x needs Flutter >=3.35
@@ -46,6 +53,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ">=4.0.0 <6.0.0"
+
+# h3_flutter 0.7.1 -> h3_web ^0.7.0 -> js ^0.7.2, and js 0.7.2 needs Dart
+# 3.7 (Flutter 3.29+). We never import the web backend on Android, so pin
+# js to 0.7.1 (Dart 3.1+) just to let pub resolve. See ISSUES_LOG #23.
+dependency_overrides:
+  js: 0.7.1
 
 flutter:
   uses-material-design: true

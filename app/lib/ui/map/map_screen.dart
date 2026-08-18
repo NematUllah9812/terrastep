@@ -19,6 +19,7 @@ class _MapScreenState extends State<MapScreen> {
   final _map = MapController();
   bool _followMe = true;
   bool _showDebug = true;
+  bool _mapReady = false;
 
   /// How many rings of hexes to draw around the current cell. 2 rings = 19
   /// hexes, which is plenty on screen and cheap to rebuild every fix.
@@ -40,8 +41,11 @@ class _MapScreenState extends State<MapScreen> {
   void _onTracker() {
     if (!mounted) return;
     final p = widget.tracker.position;
-    if (_followMe && p != null) {
-      _map.move(LatLng(p.lat, p.lng), _map.camera.zoom);
+    // MapController throws if used before FlutterMap has attached.
+    if (_mapReady && _followMe && p != null) {
+      try {
+        _map.move(LatLng(p.lat, p.lng), _map.camera.zoom);
+      } catch (_) {}
     }
     setState(() {});
   }
@@ -63,12 +67,23 @@ class _MapScreenState extends State<MapScreen> {
     final cell = t.currentCell;
     if (cell == null) return const [];
 
+    final ids = <String>{
+      ...t.indexer.disk(cell, _ringSize),
+      ...t.claimed.keys,
+    };
+
     final polys = <Polygon>[];
-    for (final id in t.indexer.disk(cell, _ringSize)) {
-      final pts = t.indexer
-          .boundary(id)
-          .map((c) => LatLng(c.lat, c.lon))
-          .toList(growable: false);
+    for (final id in ids) {
+      List<LatLng> pts;
+      try {
+        pts = t.indexer
+            .boundary(id)
+            .map((c) => LatLng(c.lat, c.lon))
+            .toList(growable: false);
+      } catch (_) {
+        continue;
+      }
+      if (pts.length < 3) continue;
 
       final isMine = t.claimed.containsKey(id);
       final isCurrent = id == cell;
@@ -109,6 +124,7 @@ class _MapScreenState extends State<MapScreen> {
               initialZoom: 16,
               minZoom: 3,
               maxZoom: 19,
+              onMapReady: () => setState(() => _mapReady = true),
               onPositionChanged: (_, hasGesture) {
                 if (hasGesture && _followMe) setState(() => _followMe = false);
               },

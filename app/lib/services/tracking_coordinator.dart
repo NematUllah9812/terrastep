@@ -71,6 +71,17 @@ class TrackingCoordinator extends ChangeNotifier {
   StreamSubscription<void>? _stepSub;
   StreamSubscription<void>? _motionSub;
 
+  DateTime? sessionStartedAt;
+
+  /// True when we are synthesizing steps from distance because the hardware
+  /// pedometer never produced a reading. Surfaced in the debug overlay so a
+  /// tester can tell estimated steps from real ones.
+  bool get estimatingSteps =>
+      !steps.isAvailable &&
+      sessionStartedAt != null &&
+      DateTime.now().difference(sessionStartedAt!) >
+          const Duration(seconds: 8);
+
   TrackingCoordinator({
     required this.indexer,
     required this.location,
@@ -89,6 +100,7 @@ class TrackingCoordinator extends ChangeNotifier {
 
   Future<void> init() async {
     await _loadClaimed();
+    sessionStartedAt = DateTime.now();
 
     _locSub = location.fixes.listen((fix) {
       final cell = accumulator.addFix(fix);
@@ -97,6 +109,7 @@ class TrackingCoordinator extends ChangeNotifier {
       lastAccuracy = fix.accuracy;
       if (cell != null) {
         fixesAccepted++;
+        _maybeEstimateSteps();
         _checkClaims();
       }
       notifyListeners();
@@ -115,6 +128,20 @@ class TrackingCoordinator extends ChangeNotifier {
 
     await location.start();
     await steps.start();
+  }
+
+  /// Devices without a step counter (or where ACTIVITY_RECOGNITION was
+  /// denied) would otherwise be unable to claim anything — `meetsFloors`
+  /// requires 120 steps. After 8 s with no pedometer reading, synthesize
+  /// steps from credited distance at a 0.78 m stride so the claim loop is
+  /// still testable. m/step stays inside the server's 0.30–1.60 band.
+  void _maybeEstimateSteps() {
+    if (!estimatingSteps) return;
+    final v = accumulator.currentVisit;
+    if (v == null) return;
+    final expected = (v.distanceM / 0.78).floor();
+    final missing = expected - v.steps;
+    if (missing > 0) accumulator.addSteps(missing, DateTime.now());
   }
 
   /// Claim any visit that now meets every floor.

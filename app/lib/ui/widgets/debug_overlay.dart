@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:terrastep_core/domain/session_accumulator.dart';
 
 import '../../services/location_service.dart';
@@ -9,10 +13,114 @@ import '../../services/tracking_coordinator.dart';
 /// This is the most important part of the first APK. The whole point of
 /// threshold 0.3 is to find out what the sensors actually do on real hardware,
 /// and that is unknowable without seeing the raw numbers. Screenshot this
-/// during a test walk.
-class DebugOverlay extends StatelessWidget {
+/// during a test walk — or tap the copy icon to dump the same numbers.
+class DebugOverlay extends StatefulWidget {
   final TrackingCoordinator tracker;
   const DebugOverlay({super.key, required this.tracker});
+
+  @override
+  State<DebugOverlay> createState() => _DebugOverlayState();
+}
+
+class _DebugOverlayState extends State<DebugOverlay> {
+  final _battery = Battery();
+  int? _batteryPct;
+  BatteryState? _batteryState;
+  Timer? _timer;
+
+  TrackingCoordinator get tracker => widget.tracker;
+
+  @override
+  void initState() {
+    super.initState();
+    _pollBattery();
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _pollBattery());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _pollBattery() async {
+    try {
+      final pct = await _battery.batteryLevel;
+      final state = await _battery.batteryState;
+      if (!mounted) return;
+      setState(() {
+        _batteryPct = pct;
+        _batteryState = state;
+      });
+    } catch (_) {
+      // Some devices refuse battery reads; leave the field as —.
+    }
+  }
+
+  String get _elapsed {
+    final start = tracker.sessionStartedAt;
+    if (start == null) return '—';
+    final d = DateTime.now().difference(start);
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    if (d.inHours > 0) return '${d.inHours}:$m:$s';
+    return '$m:$s';
+  }
+
+  String get _batteryLabel {
+    if (_batteryPct == null) return '—';
+    final charging = _batteryState == BatteryState.charging ? ' ⚡' : '';
+    return '$_batteryPct%$charging';
+  }
+
+  String get _pedometerLabel {
+    if (tracker.steps.isAvailable) {
+      return 'ok (${tracker.steps.sessionTotal})';
+    }
+    if (tracker.estimatingSteps) {
+      return 'EST. from dist';
+    }
+    return 'waiting…';
+  }
+
+  String _dump() {
+    final v = tracker.currentVisit;
+    final cfg = tracker.cfg;
+    final buf = StringBuffer()
+      ..writeln('Terrastep debug  v0.1.0+1')
+      ..writeln('elapsed $_elapsed   battery $_batteryLabel')
+      ..writeln('cell ${v?.cellId ?? '—'}')
+      ..writeln('steps ${v?.steps ?? 0} / ${cfg.claimMinSteps}')
+      ..writeln(
+          'distance ${(v?.distanceM ?? 0).toStringAsFixed(1)} m / ${cfg.claimMinDistanceM}')
+      ..writeln('dwell ${v?.dwellS ?? 0} s / ${cfg.claimMinDwellS}')
+      ..writeln('fixes ${v?.fixCount ?? 0} / ${cfg.claimMinFixes}')
+      ..writeln('m/step ${(v?.metresPerStep ?? 0).toStringAsFixed(2)}')
+      ..writeln(
+          'gps acc ${tracker.lastAccuracy == null ? '—' : '${tracker.lastAccuracy!.toStringAsFixed(1)} m'}')
+      ..writeln('accepted ${tracker.fixesAccepted}')
+      ..writeln('pedometer $_pedometerLabel')
+      ..writeln('motion ${tracker.motion.name}')
+      ..writeln('territory ${tracker.claimed.length} hexes');
+    if (tracker.rejections.isNotEmpty) {
+      buf.writeln('rejected:');
+      for (final e in tracker.rejections.entries) {
+        buf.writeln('  ${_rejName(e.key)} ${e.value}');
+      }
+    }
+    return buf.toString();
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: _dump()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Debug dump copied'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +155,11 @@ class DebugOverlay extends StatelessWidget {
                         color: Color(0xFF8FA3C4),
                         fontWeight: FontWeight.bold)),
                 const Spacer(),
+                GestureDetector(
+                  onTap: _copy,
+                  child: const Icon(Icons.copy, size: 14, color: Color(0xFF8FA3C4)),
+                ),
+                const SizedBox(width: 8),
                 _Pill(
                   label: tracker.motion.name,
                   color: switch (tracker.motion) {
@@ -71,14 +184,19 @@ class DebugOverlay extends StatelessWidget {
 
             const Divider(height: 14, color: Color(0xFF243352)),
 
-            _row('gps acc',
+            _row(
+                'gps acc',
                 tracker.lastAccuracy == null
                     ? '—'
                     : '${tracker.lastAccuracy!.toStringAsFixed(1)} m'),
             _row('accepted', '${tracker.fixesAccepted}'),
-            _row('pedometer',
-                tracker.steps.isAvailable ? 'ok (${tracker.steps.sessionTotal})' : 'NO SENSOR'),
+            _row('pedometer', _pedometerLabel,
+                valueColor: tracker.estimatingSteps
+                    ? const Color(0xFFFBBF24)
+                    : null),
             _row('territory', '${tracker.claimed.length} hexes'),
+            _row('battery', _batteryLabel),
+            _row('elapsed', _elapsed),
 
             if (rej.isNotEmpty) ...[
               const Divider(height: 14, color: Color(0xFF243352)),
@@ -107,7 +225,8 @@ class DebugOverlay extends StatelessWidget {
         FixRejection.clockSkew => 'clock',
       };
 
-  Widget _row(String k, String val, {String? hint, Color? valueColor}) => Padding(
+  Widget _row(String k, String val, {String? hint, Color? valueColor}) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 1),
         child: Row(
           children: [
@@ -115,10 +234,13 @@ class DebugOverlay extends StatelessWidget {
                 width: 76,
                 child: Text(k,
                     style: const TextStyle(color: Color(0xFF8FA3C4)))),
-            Text(val,
-                style: TextStyle(
-                    color: valueColor ?? const Color(0xFFE6EDF7),
-                    fontWeight: FontWeight.w600)),
+            Flexible(
+              child: Text(val,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: valueColor ?? const Color(0xFFE6EDF7),
+                      fontWeight: FontWeight.w600)),
+            ),
             if (hint != null) ...[
               const SizedBox(width: 6),
               Text(hint,
