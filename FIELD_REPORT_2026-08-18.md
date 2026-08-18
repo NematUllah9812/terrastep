@@ -112,3 +112,55 @@ That is expected with the map + GPS + screen lit. Threshold 0.3 / 1.8 is **scree
 5. Note: were you on Wi‑Fi, cellular, or both?
 
 A hex still needs **120 steps AND 80 m AND 90 s AND 5 accepted fixes**. Numbers should move long before a claim.
+
+---
+
+## Walk 2 — same day, later
+
+**Build string in dump:** still `v0.1.0+1` (that label was hardcoded until v0.1.2).  
+**Elapsed:** 04:27 · **Battery:** 65 % (~1 % drop this session)
+
+```
+Terrastep debug  v0.1.0+1
+elapsed 04:27   battery 65%
+cell 89209a0aa73ffff
+steps 412 / 120
+distance 64.1 m / 80
+dwell 224 s / 90
+fixes 5 / 5
+m/step 0.16
+gps acc 24.5 m
+accepted 5
+pedometer ok (412)
+motion running
+territory 0 hexes
+rejected:
+  poor acc 6
+```
+
+| Floor | Need | Got | |
+|---|---|---|---|
+| Steps | 120 | **412** | ✅ |
+| Distance | 80 m | **64.1 m** | ❌ 16 m short |
+| Dwell | 90 s | **224 s** | ✅ |
+| Fixes | 5 | **5** | ✅ |
+| GPS acc | ≤35 m to accept | **24.5 m** | ✅ real satellite lock |
+| Hex claimed | — | 0 | ❌ because distance < 80 |
+
+### Verdict
+
+**The sensors work. A hex did not fill, by 16 metres.**
+
+This is a different walk from the first one:
+
+- Accuracy **24.5 m** (was 42–300 m). That is a GNSS lock, not a Wi‑Fi guess.
+- Distance **moved** (was stuck at 0.0).
+- Pedometer still matches the HUD (412 = 412).
+- Same home cell `89209a0aa73ffff` — either a loop near home, or the phone is still sticky to that hex.
+- `m/step = 0.16` is below the server’s 0.30–1.60 band. 412 steps for 64 m credited means the displacement-anchor is only counting *net* movement. A back-and-forth or small loop is supposed to look like this. A straight block would push distance over 80 and lift m/step.
+- Battery ~1 % / 4.5 min screen-on ≈ 13 %/hr. Same order as walk 1. Still not the pocket test.
+
+**Success for:** 0.1 / 0.2 / 1.2 / 1.5 (sensors + hex drawn + steps).  
+**Not yet:** 1.7 (claim + persist) — need `distance ≥ 80`.
+
+Next walk: one straight block from the house, screen on, until the metres counter crosses 80. Then copy again. If the hex fills, force-quit and reopen — that is 1.7.

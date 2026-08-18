@@ -2,17 +2,16 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** APK **v0.1.2+3** — 80 m gate + GPS-chip fallback after the 500 m walk (#29)
+**Latest:** Walk 2 stored. GPS 24.5 m, distance **64.1 / 80**, no claim (16 m short).
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
-**Next deliverable:** uninstall, install v0.1.2, enable **High accuracy** location, walk again
+**Next deliverable:** one straight block until metres ≥ 80, then copy the dump
 
 | | |
 |---|---|
-| **Build** | ✅ v0.1.2+3 |
-| **Where to download** | [`releases/terrastep-debug.apk`](releases/terrastep-debug.apk) |
-| **First walk (~500 m)** | Steps 810 ✅. Distance 0 ❌. Map froze off Wi‑Fi, snapped back on Wi‑Fi. Acc 42–300 m. 14× `poor acc`. |
-| **Why distance was 0** | 35 m gate rejected the 42–47 m locks; remaining fixes were stale Wi‑Fi coords with 200–300 m acc. |
-| **Battery** | ~2 % / 12 min screen-on (~10 %/hr). Expected with the screen lit. Pocket test still needs O11. |
+| **Walk 1** | Steps 810, distance 0. Wi‑Fi lock. Acc 42–300 m. |
+| **Walk 2** | Steps 412 ✅, dwell 224 ✅, fixes 5 ✅, acc **24.5 m** ✅, distance **64.1 / 80** ❌. Territory 0. |
+| **Verdict** | Sensors work. Claim missed by 16 m. `m/step` 0.16 = net displacement, not a dead pedometer. |
+| **Battery** | ~1 % / 4.5 min screen-on (~13 %/hr). Expected with the screen lit. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -147,10 +146,9 @@ The APK needs nothing — download `releases/terrastep-debug.apk`.
 
 ## 1. Honest Summary
 
-**The referee is finished and tested. There is a holdable game. It has
-been walked once (~500 m). Steps work. Distance does not, because the
-phone locked to Wi‑Fi and the 35 m gate threw the rest away. See
-`FIELD_REPORT_2026-08-18.md`.**
+**The referee is finished. The board exists. Two walks on a real phone:**
+walk 1 was a Wi‑Fi lock (distance 0); walk 2 got a 24.5 m GNSS lock and
+**64.1 m of 80 m** toward a claim. Sensors work. No hex yet.
 
 The backend is real code, not a sketch: 48 behavioural assertions pass
 (claiming, contesting, hysteresis, decay, idempotency, teleport rejection,
@@ -173,7 +171,7 @@ on it.
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
 | Supabase deployment | ❌ Local Postgres only |
 | Flutter app | 🟡 Compiles; APK in `releases/` |
-| Real GPS / steps / battery | 🟡 One walk: pedometer ✅, distance 0, acc 42–300 m |
+| Real GPS / steps / battery | 🟡 Walk 2: acc 24.5 m, steps 412, dist 64/80 |
 | Store submission | ❌ Not started |
 
 ---
@@ -334,9 +332,8 @@ latency target, and **anything on a real phone**.
 
 **Do these in this order. Nothing else first.**
 
-1. **Install v0.1.2, set Location → High accuracy (GPS on), walk again
-   off Wi‑Fi.** We need `gps acc` < 80 m *while walking* and distance
-   climbing. Copy the overlay dump. Details in the field report.
+1. **One straight block until `distance` ≥ 80 m.** Copy the overlay.
+   If a hex fills: force-quit, reopen, confirm it is still there (1.7).
 2. **Foreground service (O11)** so the real 0.3 / 1.8 pocket test can run.
 3. **Deploy to a real Supabase project** (threshold 2.1, properly). ~1 hour.
 4. **Clear the four test-debt items.** ~4 hours.
