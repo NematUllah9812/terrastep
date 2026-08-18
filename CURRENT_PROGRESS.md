@@ -2,11 +2,52 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest commit:** Issues log + docs index
+**Latest commit:** `d40a007` — outbox + sync worker
+**Next deliverable:** installable Android debug APK (see §0b)
 
 > **Resuming on a new machine?** Read §0 below, then `ISSUES_LOG.md`
 > "Recurring Patterns". The sandbox/toolchain is ephemeral — expect to
 > reinstall Postgres and re-set git identity before anything runs.
+
+---
+
+## 0b. What's Happening Next — Debug APK
+
+**Decision (2026-08-18):** Android is the first target and APKs can be
+side-loaded, so the next deliverable is a **debug APK you can install directly**
+rather than more headless Dart.
+
+That flips the whole Phase 0/1 sequence from "blocked on your device" to
+"testable this week", because the three things that genuinely need hardware —
+real GPS drift, background survival/battery, and step sensors — are exactly what
+an installable build unlocks.
+
+**Build plan**
+
+| Step | What | Risk |
+|---|---|---|
+| 1 | Install JDK 17 + Android cmdline-tools + SDK 34 + Flutter stable | Large download (~2.5 GB) |
+| 2 | `flutter create --platforms android` around the existing `lib/` | Low |
+| 3 | Wire real H3 via `CellIndexer` (threshold 1.3) | Low — the seam already exists |
+| 4 | Map screen + hex layer (1.1, 1.4) | Medium |
+| 5 | Location + foreground service (1.2, 1.8) | **The hard part** |
+| 6 | Steps via Health Connect (1.5) | Medium |
+| 7 | `flutter build apk --debug` | **Sandbox has 2 GB RAM; Gradle may OOM** |
+
+**Known constraint:** this sandbox has 2 GB RAM and 2 cores. Gradle's daemon
+typically wants more. Mitigations, in order: `org.gradle.jvmargs=-Xmx1g`,
+`--no-daemon`, `org.gradle.workers.max=1`, and disabling minification for debug
+builds. If the APK still cannot be produced here, the fallback is a **GitHub
+Actions workflow that builds it on their runners** (free for private repos,
+2000 min/month) and publishes the APK as a downloadable artifact — which you can
+grab from your phone. That fallback is arguably better anyway: reproducible
+builds, no local toolchain, and it keeps working after any sandbox reset.
+
+**What ships in the first APK** (deliberately minimal, to test the risky part):
+map + live position + hex grid + local claiming + a debug overlay showing
+steps/distance/dwell/effort and the GPS quality gate. No account, no server —
+Phase 1 is offline by design, so the APK proves the core loop and the battery
+question without needing Supabase at all.
 
 ---
 
