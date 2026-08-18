@@ -122,7 +122,7 @@ Legend: ✅ done & verified · 🟡 partial · ⬜ not started
 | 2.3 | Profile auto-creation trigger | ✅ | `on_auth_user_created` written; exercised by the test fixtures |
 | 2.4 | RLS hostile test | 🟡 | Policies written (public read, zero direct write). The hostile test itself is **not** written — needs a real JWT to be meaningful. |
 | 2.5 | `claim_cells` RPC deployed | ✅ | **48 assertions passing**, incl. all 5 required rejection fixtures |
-| 2.6 | Outbox + sync worker | ⬜ | Design + code sketch done; server-side idempotency (`sync_receipts`) ✅ tested |
+| 2.6 | Outbox + sync worker | 🟡 | **Logic implemented + 16 tests passing** (`app/lib/data/`), incl. the airplane-mode acceptance test. Needs Drift/SQLite backing for real durability (ISSUES_LOG #19) |
 | 2.7 | `get_cells_in_view` | ✅ | Written; not yet load-tested for the <200 ms target |
 | 2.8 | Server-driven map render | ⬜ | Needs the app |
 | 2.9 | Naming + colour | ✅ | `update_territory` + auth checks tested (I1–I4) |
@@ -165,14 +165,14 @@ All ⬜. Not started.
 |---|---|---|---|---|
 | 0 — Spike | 0 | 0 | 3 | 3 |
 | 1 — Prototype | 1 | 1 | 6 | 8 |
-| 2 — Backend | 4 | 3 | 2 | 9 |
+| 2 — Backend | 4 | 4 | 1 | 9 |
 | 3 — Multiplayer | 2 | 4 | 2 | 8 |
 | 4 — Anti-cheat | 3 | 4 | 1 | 8 |
 | 5 — Launch | 0 | 0 | 9 | 9 |
-| **Total** | **10** | **12** | **23** | **45** |
+| **Total** | **10** | **13** | **22** | **45** |
 
 **Fully complete: 10 / 45 (22%).**
-Counting partials at half credit: ~16 / 45 (**~36%**).
+Counting partials at half credit: ~16.5 / 45 (**~37%**).
 
 **Hours burned vs. estimate:** roughly 30–35 h of the ~215 h estimate — but
 weighted heavily toward design, which front-loads. The remaining work is more
@@ -264,6 +264,7 @@ re-checked on real Supabase:
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-18 | **Threshold 2.6 logic complete.** Outbox + SyncWorker with batching, exponential backoff, idempotent retries. 43 client tests. Fixed a rate-limit bug that could shadow-ban a heavy walker. | #19 |
 | 2026-08-18 | **Threshold 1.6 complete.** Implemented `SessionAccumulator` + `GameConfig` as pure Dart with 27 passing tests. Fixed a stationary-jitter exploit that credited 1.1 km of phantom distance. Added a `client` CI job. | #17, #18 |
 | 2026-08-18 | Added `ISSUES_LOG.md` (18 entries, 7 open items) and a resume-anywhere section. | — |
 | 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost exec bit, and Postgres discovery across Debian/Homebrew/Postgres.app. Verified clean-slate run on a bare machine. | #10, #11, #12 |

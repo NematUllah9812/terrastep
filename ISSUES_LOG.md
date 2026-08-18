@@ -450,6 +450,42 @@ accepted`.
 
 ---
 
+### #19 🔴 Rate limiting backed off one batch instead of the queue
+**Symptom** Sync test failure:
+```
+FAIL rate limiting backs off the whole queue
+  Expected: <1>   Actual: <2>
+```
+The worker made a second network call immediately after the server had said
+`rate_limited`.
+
+**Cause** On a rate-limit response the worker called
+`outbox.recordFailure(entry.batchUuid, ...)`, which delays **only that batch**.
+`break` stopped the current round, but the next flush (90 s later) found the
+*next* batch due and sent it — still inside the server's cooldown.
+
+Real-world consequence, from `02_CLAIM_ENGINE.sql`: every rate-limited call adds
+**+5 suspicion**. A user who walked a lot and tripped the 50-cells/hour limit
+would keep hammering, and could shadow-ban themselves for walking too much.
+
+**Fix** Added `Outbox.backoffAll(error, notBefore)` and used it for
+**account-wide** conditions (rate limiting, expired auth, offline) as opposed to
+batch-specific ones. Two deliberate details:
+
+- **`attempts` is not incremented.** The batch didn't fail — the account was
+  throttled. Counting it would push healthy batches toward the poison
+  threshold and silently discard walked data.
+- **Auth failures use it too.** An expired JWT invalidates every batch, so
+  retrying the rest is pointless.
+
+**Prevention** **Classify a failure before reacting to it.** Ask "is this the
+batch's fault, or the account's?" Batch-specific → back off that batch and count
+the attempt. Account-wide → hold everything and count nothing. Two regression
+tests now pin this: one asserts all four queued batches are held, the other that
+`attempts` stays 0.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
