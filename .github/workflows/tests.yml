@@ -7,17 +7,34 @@ name: Engine tests
 on:
   push:
     branches: [main]
-    paths:
-      - '*.sql'
-      - 'tests/**'
-      - '.github/workflows/tests.yml'
   pull_request:
-    paths:
-      - '*.sql'
-      - 'tests/**'
   workflow_dispatch:
 
 jobs:
+  client:
+    name: Client core (pure Dart)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Analyze
+        run: dart analyze --fatal-infos
+
+      - name: Test (SessionAccumulator + config parity)
+        run: dart test
+
   engine:
     name: Claim engine acceptance suite
     runs-on: ubuntu-latest

@@ -29,6 +29,7 @@ Everything needed to continue is committed. No local state matters.
 | **`CURRENT_PROGRESS.md`** | **This file — status** |
 | **`ISSUES_LOG.md`** | **Every blocker hit and how it was fixed** |
 | `SECURITY.md` | Credential handling rules |
+| `app/` | **Flutter app. `lib/core` + `lib/domain` are pure Dart, tested in CI** |
 | `prototype/index.html` | Playable claim-loop prototype |
 | `tests/` | 48-assertion suite + Supabase shim |
 
@@ -46,9 +47,12 @@ git config user.name  "NematUllah9812"
 
 # 3. Verify everything still works
 ./tests/run_tests.sh                      # expect: ALL 48 TESTS PASSED
+
+# 4. Client core (needs Dart; Flutter not required yet)
+cd app && dart pub get && dart test    # expect: All tests passed! (27)
 ```
 
-If that prints 48/48, the backend is intact and you can start work.
+If both suites are green, backend and client core are intact.
 The prototype needs nothing — open `prototype/index.html` in any browser.
 
 ---
@@ -105,7 +109,7 @@ Legend: ✅ done & verified · 🟡 partial · ⬜ not started
 | 1.3 | H3 integration | ⬜ | |
 | 1.4 | Hex grid overlay | 🟡 | Rendering approach written + working in `prototype/`, but on a stand-in axial grid, not real H3 |
 | 1.5 | Step source (HealthKit / Health Connect) | ⬜ | Packages selected, code sketched |
-| 1.6 | `SessionAccumulator` + 6 unit tests | 🟡 | **Source written** in `03_CLIENT_ARCHITECTURE.md §5`; tests specified but not run |
+| 1.6 | `SessionAccumulator` + 6 unit tests | ✅ | **Implemented and verified: 27/27 passing.** Pure Dart in `app/lib/domain/`. Found and fixed a cell-claiming exploit (ISSUES_LOG #17) |
 | 1.7 | Local claim + SQLite persist | ⬜ | |
 | 1.8 | Background survival, <4%/hr | ⬜ | **Boss fight of Phase 1** |
 
@@ -160,15 +164,15 @@ All ⬜. Not started.
 | Phase | ✅ Done | 🟡 Partial | ⬜ Not started | Total |
 |---|---|---|---|---|
 | 0 — Spike | 0 | 0 | 3 | 3 |
-| 1 — Prototype | 0 | 2 | 6 | 8 |
+| 1 — Prototype | 1 | 1 | 6 | 8 |
 | 2 — Backend | 4 | 3 | 2 | 9 |
 | 3 — Multiplayer | 2 | 4 | 2 | 8 |
 | 4 — Anti-cheat | 3 | 4 | 1 | 8 |
 | 5 — Launch | 0 | 0 | 9 | 9 |
-| **Total** | **9** | **13** | **23** | **45** |
+| **Total** | **10** | **12** | **23** | **45** |
 
-**Fully complete: 9 / 45 (20%).**
-Counting partials at half credit: ~15.5 / 45 (**~34%**).
+**Fully complete: 10 / 45 (22%).**
+Counting partials at half credit: ~16 / 45 (**~36%**).
 
 **Hours burned vs. estimate:** roughly 30–35 h of the ~215 h estimate — but
 weighted heavily toward design, which front-loads. The remaining work is more
@@ -260,7 +264,8 @@ re-checked on real Supabase:
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-18 | Added `ISSUES_LOG.md` (16 entries, 7 open items) and a resume-anywhere section. | — |
+| 2026-08-18 | **Threshold 1.6 complete.** Implemented `SessionAccumulator` + `GameConfig` as pure Dart with 27 passing tests. Fixed a stationary-jitter exploit that credited 1.1 km of phantom distance. Added a `client` CI job. | #17, #18 |
+| 2026-08-18 | Added `ISSUES_LOG.md` (18 entries, 7 open items) and a resume-anywhere section. | — |
 | 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost exec bit, and Postgres discovery across Debian/Homebrew/Postgres.app. Verified clean-slate run on a bare machine. | #10, #11, #12 |
 | 2026-08-17 | Switched from a classic PAT to a fine-grained, one-repo, 7-day token. | #13, #14, #15 |
 | 2026-08-17 | Initial plan, schema, claim engine, prototype, 48-test suite. | #1–#9 |

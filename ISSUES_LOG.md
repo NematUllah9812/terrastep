@@ -371,6 +371,85 @@ scope problem. Noted in `SECURITY.md §3`.
 
 ---
 
+## Client (Flutter / Dart)
+
+### #17 🔴 Stationary GPS jitter accumulated 1.1 km of phantom distance
+**Symptom** Threshold 1.6 test T5 failed on first run:
+```
+FAIL T5 GPS jitter while stationary
+  Expected: < 900    Actual: 1144.14
+```
+A phone standing still with 28 m GPS accuracy accrued **1,144 m over five
+minutes** — enough to claim a cell without leaving the room. Threshold 4.2
+specifies *"stand still indoors 10 min → distance < 20 m"*.
+
+**Cause** The accumulator summed the raw distance between consecutive fixes,
+gated only on `d > 1.0 m`. A stationary phone produces a **random walk**: each
+fix lands tens of metres from the last. Summing those hops integrates noise into
+kilometres.
+
+**Failed first attempt.** An accuracy-aware deadband (subtract a noise floor
+from each hop) does *not* work. Measured across noise factors:
+
+| factor | real walk | jitter |
+|---|---|---|
+| 0.00 | 456 m | 1267 m |
+| 0.25 | 376 m | 816 m |
+| 0.50 | 105 m | 397 m |
+| 0.75 | **0 m** | 138 m |
+
+At 28 m accuracy the individual jitter hops are genuinely large, so any deadband
+big enough to suppress them also erases real walking. There is no good value.
+
+**Fix — displacement anchor.** The distinguishing property isn't hop size, it's
+**net displacement**: jitter oscillates around a point, walking moves away from
+it. So hold an anchor fix and only credit distance once the current fix is
+`2 × accuracy` away, then move the anchor there.
+
+```dart
+final threshold = math.max(8.0, math.max(anchor.accuracy, fix.accuracy) * 2.0);
+if (d < threshold) return 0;      // never escaped the noise envelope
+_anchor = fix;
+return d;
+```
+
+`2.0` was chosen by measurement (`app/tool/tune.dart`), being the smallest factor
+that zeroes jitter while leaving a walk fully credited.
+
+**Verified** (`app/tool/verify.dart`):
+
+| Scenario | Credited | Claimable |
+|---|---|---|
+| Genuine 10-min walk (810 m actual) | **789 m (97%)** | 4 cells ✅ |
+| Standing still, 28 m accuracy, 10 min | **0.0 m** | 0 ✅ |
+| Shaking phone, 3025 fake steps | **0.0 m** | 0 ✅ |
+
+**Prevention** Two lessons. First, **write the adversarial test before the
+implementation** — T5 existed because the plan demanded it, and it caught a
+cell-claiming exploit on the very first run. Second, when a filter can't
+separate two signals, **look for a different discriminating property** rather
+than tuning the parameter; hop magnitude was the wrong axis, net displacement
+was the right one.
+
+---
+
+### #18 🟡 A too-aggressive fix broke the golden path
+**Symptom** After the first anti-drift attempt, T5 passed but the golden-path
+test failed: a genuine 8-minute walk became unclaimable (`readyToSubmit()` empty).
+
+**Cause** The 0.75 noise factor suppressed jitter by erasing *all* movement.
+Tests only caught it because a "real walk must still work" test existed
+alongside the adversarial ones.
+
+**Fix** Replaced with the anchor filter (#17), which passes both.
+
+**Prevention** **Every anti-cheat test needs a paired golden-path test.** A
+filter that rejects everything scores 100% against attackers and ships a broken
+product. This is the client-side mirror of the SQL suite's `A1 valid walk
+accepted`.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.

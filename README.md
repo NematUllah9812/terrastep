@@ -24,6 +24,7 @@ All 48 pass.
 | **`05_COST_MODEL.md`** | Where the free tier actually breaks (~600 MAU on storage, ~430 DAU on egress) and the specific changes that push it to ~2,500 MAU. Real year-one cost: **$124**. |
 | **`06_MILESTONE_CHECKLIST.md`** | 45 thresholds across 6 phases, each with a binary acceptance test and an hour estimate. This is your actual work queue. |
 | **`CURRENT_PROGRESS.md`** | Where we are against those 45 thresholds, plus a "resume on any machine" setup section. **Start here when picking the project back up.** |
+| **`app/`** | Flutter client. `lib/core` + `lib/domain` are pure Dart with 27 passing tests — see `app/README.md`. |
 | **`ISSUES_LOG.md`** | Every blocker hit so far — symptom, cause, fix, prevention — plus open items carried forward. |
 | **`SECURITY.md`** | Credential handling: the Supabase publishable/secret split, token scoping, leak response. |
 | **`prototype/index.html`** | Zero-dependency browser prototype of the claim loop. Walk around, claim hexes, spawn rivals, watch territory decay. |
@@ -48,10 +49,11 @@ tuning here transfers directly to the server.
 ### 2. Verify the backend
 
 ```bash
-./tests/run_tests.sh
+./tests/run_tests.sh                    # 48 SQL assertions
+cd app && dart pub get && dart test     # 27 client assertions
 ```
 
-Needs only `postgresql` installed locally. It applies the real SQL files
+Needs only `postgresql` and the Dart SDK — no Flutter, no emulator. It applies the real SQL files
 (nothing mocked but Supabase's `auth.uid()` and `realtime.send()`) and runs
 all 48 assertions.
 

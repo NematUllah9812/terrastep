@@ -1,0 +1,13 @@
+include: package:lints/recommended.yaml
+
+analyzer:
+  exclude:
+    - tool/**   # dev scripts: print() is the point
+  language:
+    strict-casts: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    - prefer_final_locals
+    - avoid_print

@@ -1,0 +1,58 @@
+name: terrastep
+description: GPS territory-control MMO. Walk to claim hexagons.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+# NOTE ON STRUCTURE
+# -----------------
+# lib/core, lib/domain are PURE DART with no Flutter dependency, so they run
+# under `dart test` with no emulator and no plugins. That is what lets the
+# claim logic be verified in CI (see .github/workflows/tests.yml).
+#
+# The Flutter-dependent packages below are commented out until threshold 1.1,
+# because adding them makes `dart test` impossible without the Flutter SDK.
+# Uncomment them together with `flutter: sdk: flutter` when you scaffold the
+# app shell on a machine that has Flutter installed.
+
+dependencies:
+  # --- pure dart, safe to depend on now ---
+  meta: ^1.15.0
+
+  # --- uncomment at threshold 1.1 (needs the Flutter SDK) ---
+  # flutter:
+  #   sdk: flutter
+  #
+  # # Map
+  # maplibre_gl: ^0.21.0
+  #
+  # # Geospatial
+  # h3_flutter: ^0.6.0
+  # latlong2: ^0.9.1
+  #
+  # # Location + steps
+  # geolocator: ^13.0.0
+  # flutter_foreground_task: ^8.10.0
+  # health: ^11.1.0
+  # pedometer: ^4.0.2
+  #
+  # # Backend
+  # supabase_flutter: ^2.8.0
+  #
+  # # Local persistence (outbox)
+  # drift: ^2.20.0
+  # sqlite3_flutter_libs: ^0.5.24
+  # path_provider: ^2.1.4
+  #
+  # # State
+  # flutter_riverpod: ^2.5.1
+  #
+  # # Plumbing
+  # uuid: ^4.5.1
+  # connectivity_plus: ^6.0.5
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^4.0.0
