@@ -1,8 +1,18 @@
 # TERRASTEP — Milestone Checklist
-### 34 thresholds, each with a binary acceptance test
+### 45 thresholds, each with a binary acceptance test
 
 Work strictly top to bottom. Do not start a phase until the previous one's
 **exit criteria** pass. Estimated effort assumes one developer, part-time.
+
+**Live status lives in [`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md), not
+here.** This file is the work queue: a box is checked only when the
+acceptance test has actually been run. Code that compiles but has not
+been walked is still unchecked.
+
+**Where we are (2026-08-18):** testing APK is in
+[`releases/terrastep-debug.apk`](releases/terrastep-debug.apk).
+1.6 is the only Phase 0/1 box that is honestly ✅ (unit tests). 0.1, 0.2
+and 1.1–1.5 / 1.7 are implemented and waiting on one sidewalk walk.
 
 ---
 

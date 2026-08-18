@@ -10,16 +10,13 @@ This package is the shell: sensors, map, UI.
 
 ## Getting the APK on your phone
 
-A 45 MB arm64 debug APK was built on 2026-08-18 (Flutter 3.27.4). Download
-`Terrastep-debug.apk` from this workspace, or let GitHub rebuild it:
+**Easiest:** download
+[`../releases/terrastep-debug.apk`](../releases/terrastep-debug.apk)
+from the repo, tap it, allow *install from unknown sources*.
 
-1. Open the repo → **Actions** tab (works in the GitHub mobile app)
-2. Newest **Build Android APK** run
-3. Scroll to **Artifacts** → tap **terrastep-debug-apk** → downloads a `.zip`
-4. Unzip, tap the `.apk`, allow *install from unknown sources*
-
-You can also trigger a build by hand: Actions → Build Android APK → **Run
-workflow**. The workflow pins Flutter **3.27.4** (see ISSUES_LOG #23).
+**Or rebuild:** repo → **Actions** → newest *Build Android APK* →
+Artifacts → `terrastep-debug-apk`. The workflow pins Flutter **3.27.4**
+(ISSUES_LOG #23). You can also *Run workflow* by hand.
 
 > Debug build, so it is unsigned and larger than a release build. Fine for
 > testing; not for the Play Store.
@@ -92,13 +89,18 @@ patch script, not in a manifest file.**
 
 ## Building locally (optional)
 
+Needs Flutter **3.27.4**, JDK 17, Android SDK 34. On a 2 GB machine add
+4 GB of swap and `org.gradle.jvmargs=-Xmx1024m` (ISSUES_LOG #26).
+
 ```bash
 cd app
 flutter create --platforms=android --org io.terrastep --project-name terrastep .
 bash ../scripts/patch_android_manifest.sh
+rm -f test/widget_test.dart
 flutter pub get
-flutter build apk --debug
+flutter build apk --debug --target-platform android-arm64
 # -> build/app/outputs/flutter-apk/app-debug.apk
+cp build/app/outputs/flutter-apk/app-debug.apk ../releases/terrastep-debug.apk
 ```
 
 ---

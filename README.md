@@ -4,11 +4,13 @@ A GPS territory-control MMO on a zero-budget stack. This repo is the full
 technical plan: architecture, runnable database, verified game rules, client
 code, anti-cheat design, cost ceilings, and a 45-threshold roadmap.
 
-**Status of what's here: the backend is not a sketch — it runs.**
-`tests/run_tests.sh` spins up Postgres, applies the real schema and claim
-engine, and asserts 48 behavioural tests covering claiming, contesting,
-hysteresis, decay, idempotency, teleport rejection and shadow-banning.
-All 48 pass.
+**Status of what's here: the backend runs, and there is a testing APK.**
+`tests/run_tests.sh` asserts 48 behavioural tests (claiming, contesting,
+hysteresis, decay, idempotency, teleport, shadow-ban). All 48 pass.
+The Android debug build lives at
+[`releases/terrastep-debug.apk`](releases/terrastep-debug.apk).
+It has not been walked on a real phone yet — that is the next step.
+See [`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md).
 
 ---
 
@@ -23,10 +25,11 @@ All 48 pass.
 | **`04_ANTI_CHEAT.md`** | Threat model (9 attacks), the 4 defence layers, why the step/distance ratio rule is the strongest single check, behavioural scoring SQL, and the shadow-ban ladder. |
 | **`05_COST_MODEL.md`** | Where the free tier actually breaks (~600 MAU on storage, ~430 DAU on egress) and the specific changes that push it to ~2,500 MAU. Real year-one cost: **$124**. |
 | **`06_MILESTONE_CHECKLIST.md`** | 45 thresholds across 6 phases, each with a binary acceptance test and an hour estimate. This is your actual work queue. |
-| **`CURRENT_PROGRESS.md`** | Where we are against those 45 thresholds, plus a "resume on any machine" setup section. **Start here when picking the project back up.** |
+| **`CURRENT_PROGRESS.md`** | Where we are against those 45 thresholds. **Start here when picking the project back up.** |
+| **`releases/terrastep-debug.apk`** | Installable testing APK. Tap, install, walk. |
 | **`packages/terrastep_core/`** | Pure-Dart game logic (accumulator, config, sync). 43 tests, no Flutter dependency. |
-| **`app/`** | Flutter Android app — sensors, map, debug overlay. See `app/README.md` for how to get the APK. |
-| **`ISSUES_LOG.md`** | Every blocker hit so far — symptom, cause, fix, prevention — plus open items carried forward. |
+| **`app/`** | Flutter Android app — sensors, map, debug overlay. |
+| **`ISSUES_LOG.md`** | Every blocker — symptom, cause, fix, prevention — plus open items. |
 | **`SECURITY.md`** | Credential handling: the Supabase publishable/secret split, token scoping, leak response. |
 | **`prototype/index.html`** | Zero-dependency browser prototype of the claim loop. Walk around, claim hexes, spawn rivals, watch territory decay. |
 | **`tests/`** | The acceptance suite + a local-Postgres shim for Supabase. |
@@ -37,9 +40,15 @@ All 48 pass.
 
 ### 0. Get the APK on your Android phone
 
-A debug APK is built. Download `Terrastep-debug.apk` from the workspace,
-or: repo → **Actions** → newest *Build Android APK* → **Artifacts** →
-`terrastep-debug-apk`. Details in [`app/README.md`](app/README.md).
+**[Download `releases/terrastep-debug.apk`](releases/terrastep-debug.apk)**
+→ open the file → allow *install from unknown sources* → grant Location
+and Physical activity.
+
+Screen on, app open, walk a block. Screenshot the debug overlay.
+Details in [`app/README.md`](app/README.md) and
+[`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md) §0b.
+
+This build does **not** track with the screen off.
 
 ### 1. Play the browser prototype (30 seconds)
 
@@ -129,4 +138,5 @@ select * from pg_available_extensions where name like 'h3%';
 
 ≈ 5 months part-time at 12 h/week.
 
-**Next action:** `06_MILESTONE_CHECKLIST.md`, threshold 0.1.
+**Next action:** install `releases/terrastep-debug.apk` and walk a block.
+Then `CURRENT_PROGRESS.md` §6.

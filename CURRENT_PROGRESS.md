@@ -2,72 +2,93 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest commit:** (this one) — first green APK, built locally
-**Next deliverable:** install the APK and walk a block (§0b)
+**Latest commit on this write-up:** APK committed to `releases/`
+**Next deliverable:** install the APK and walk a block (see §0b)
 
-**Build status:** ✅ **APK built.** `Terrastep-debug.apk` (45 MB, arm64 debug).
-Analyzer clean. `libh3.so` + `libflutter.so` packed. Attempt #1 died on
-open carets (#22). Attempt #2 would have died on the Dart 3.5/3.6 gap
-around `h3_flutter` 0.7.x (#23). Toolchain is now Flutter **3.27.4**
-(Dart 3.6.2).
+| | |
+|---|---|
+| **Build** | ✅ Green. 45 MB arm64 debug APK, analyzer clean, `libh3.so` packed. |
+| **Where to download** | [`releases/terrastep-debug.apk`](releases/terrastep-debug.apk) |
+| **Toolchain** | Flutter **3.27.4** / Dart 3.6.2 / JDK 17 / compileSdk 35 |
+| **Why not 3.24.5** | `h3_flutter` 0.7.x cannot resolve on Dart 3.5 — ISSUES_LOG #23 |
+| **Device test** | ⬜ Not done. That is now the only thing blocking 0.1 / 0.2 / 1.1–1.5 / 1.7. |
 
-> **Resuming on a new machine?** Read §0 below, then `ISSUES_LOG.md`
-> "Recurring Patterns". The sandbox/toolchain is ephemeral — expect to
-> reinstall Postgres and re-set git identity before anything runs.
+> **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
+> Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
+> identity before anything runs.
+
+---
+
+## Contents
+
+1. [0b — Get the APK](#0b-get-the-apk)
+2. [0 — Pick up where we left off](#0-pick-up-where-we-left-off)
+3. [1 — Honest summary](#1-honest-summary)
+4. [2 — Threshold-by-threshold status](#2-threshold-by-threshold-status)
+5. [3 — Scorecard](#3-scorecard)
+6. [4 — What actually got verified](#4-what-actually-got-verified)
+7. [5 — Known gaps & risks](#5-known-gaps--risks)
+8. [6 — Next actions](#6-next-actions)
+9. [7 — Changelog](#7-changelog)
 
 ---
 
 ## 0b. Get the APK
 
-**A debug APK exists.** Built locally on 2026-08-18 against Flutter 3.27.4 /
-Dart 3.6.2 / JDK 17 / compileSdk 35. 45 MB, `arm64-v8a` (every phone we
-care about for this test). GitHub Actions will rebuild it on the next push
-that touches `app/` (workflow now pins 3.27.4, not 3.24.5).
+**Download from the repo (easiest on a phone):**
 
-**To install, pick one:**
+[`releases/terrastep-debug.apk`](releases/terrastep-debug.apk)
 
-1. **This workspace** — download `Terrastep-debug.apk`, copy to the phone,
-   tap it, allow *install from unknown sources*.
-2. **GitHub Actions** — repo → **Actions** → newest *Build Android APK* →
-   **Artifacts** → `terrastep-debug-apk` → unzip → tap the `.apk`.
+Tap → download → open → allow *install from unknown sources*. Grant
+**Location (precise)** and **Physical activity** when the app asks.
 
-**What it does:** OSM map, live position, real H3 res-9 hexes, walk-to-claim
-(120 steps AND 80 m AND 90 s AND 5 fixes), persistent territory, and a debug
-overlay showing every sensor value, rejected-fix counts, **live battery %**,
-and session elapsed time. Fully offline — no account, no server.
+Also available from Actions (rebuilds on every relevant push): repo →
+**Actions** → newest *Build Android APK* → Artifacts → `terrastep-debug-apk`.
 
-**New in this build (vs. the unbuilt source):**
-- Runtime `ACTIVITY_RECOGNITION` request, otherwise the pedometer is silent
-  on Android 10+ and no hex can ever fill.
-- Stride-estimated steps after 8 s with no hardware counter, so a device
-  without a pedometer can still exercise the claim loop. Overlay says
-  `EST. from dist` in that case.
-- Copy-to-clipboard dump on the overlay (tap the copy icon).
-- Claimed hexes stay drawn after you walk out of the 2-ring window.
+| | |
+|---|---|
+| File | `releases/terrastep-debug.apk` |
+| Size | 45 MB |
+| ABI | `arm64-v8a` (every phone we care about for this test) |
+| Signed | Debug (not Play Store) |
+| Built | 2026-08-18, Flutter 3.27.4, locally, then committed |
+| Offline | Yes — no account, no server, no Supabase |
 
-**What we need from the test** — this is the whole point:
+### What it does
+
+- OSM map + live blue dot
+- Real H3 res-9 hexes (2-ring around you; claimed hexes stay drawn)
+- Walk-to-claim: **120 steps AND 80 m AND 90 s AND 5 GPS fixes**
+- Territory persists across force-quit (SharedPreferences)
+- Debug overlay: steps, distance, dwell, GPS accuracy, rejected fixes,
+  **live battery %**, session elapsed time
+- Tap the copy icon on the overlay to dump those numbers
+
+### What was added so the first walk can actually succeed
+
+| Addition | Why |
+|---|---|
+| Runtime `ACTIVITY_RECOGNITION` | Without it the pedometer is silent on Android 10+ and no hex can fill (#25) |
+| Stride-estimated steps after 8 s with no sensor | Overlay says `EST. from dist`. Devices without a pedometer can still claim. |
+| Live battery % + elapsed | The numbers threshold 0.3 needs, on screen |
+| Hex ids padded to 15 chars | `BigInt.toRadixString` drops leading zeros; h3-js does not (O9) |
+| MapController guarded until ready | First GPS fix used to crash if the map was not attached |
+
+### What we need from the walk
+
+Test with the **screen on and the app open**. This build has no foreground
+service (O11) — tracking stops when you lock the screen.
 
 | Question | Why |
 |---|---|
 | Did a hex fill after ~120 steps? | Core loop on real GPS |
 | `m/step` while walking | Server rejects outside 0.30–1.60 |
-| `gps acc` typical | >35 m routinely = gate too strict |
-| Rejected-fix counts | Tells us which filter needs tuning |
-| `pedometer` ok or NO SENSOR | Hardware varies |
-| **Battery % over 30 min, screen off** | **Threshold 0.3 go/no-go. Target <4%/hr** |
+| Typical `gps acc` | Routinely >35 m = accuracy gate too strict |
+| Rejected-fix counts | Tells us which filter to tune |
+| `pedometer` ok / EST. from dist | Hardware vs. fallback |
+| Battery % over 15–20 min, screen ON | Foreground drain (worst case) |
 
-⚠️ **Important caveat on the battery test.** This build tracks only while the
-app is **in the foreground**. The foreground service (threshold 1.8, open item
-O11) is not implemented yet, so tracking stops when you background the app or
-lock the screen.
-
-So this first APK measures **foreground drain with the screen on**, which is the
-*worst case* and not the number threshold 0.3 actually needs. It is still worth
-measuring — if foreground drain is already terrible, background will be too —
-but the real go/no-go test needs the foreground service, which comes next.
-
-**For this round, test with the screen on and the app open.** Walk a block,
-watch a hex fill, note the battery drop over ~15-20 minutes.
+Screenshot the overlay. That one picture answers 0.1, 0.2, 1.1–1.5 and 1.7.
 
 ---
 
@@ -75,7 +96,7 @@ watch a hex fill, note the battery drop over ~15-20 minutes.
 
 Everything needed to continue is committed. No local state matters.
 
-**Repo map**
+### Repo map
 
 | File | Purpose |
 |---|---|
@@ -86,66 +107,69 @@ Everything needed to continue is committed. No local state matters.
 | `03_CLIENT_ARCHITECTURE.md` | Flutter structure, battery, sync |
 | `04_ANTI_CHEAT.md` | Threat model, 4 defence layers |
 | `05_COST_MODEL.md` | Free-tier ceilings, upgrade triggers |
-| `06_MILESTONE_CHECKLIST.md` | 45 thresholds + acceptance tests |
-| **`CURRENT_PROGRESS.md`** | **This file — status** |
-| **`ISSUES_LOG.md`** | **Every blocker hit and how it was fixed** |
+| `06_MILESTONE_CHECKLIST.md` | 45 thresholds + acceptance tests (the work queue) |
+| **`CURRENT_PROGRESS.md`** | **This file — status against the queue** |
+| **`ISSUES_LOG.md`** | **Every blocker, how it was fixed, open items** |
 | `SECURITY.md` | Credential handling rules |
-| `packages/terrastep_core/` | **Pure-Dart game logic. 43 tests, no Flutter dep.** |
+| **`releases/terrastep-debug.apk`** | **Installable testing APK** |
+| `packages/terrastep_core/` | Pure-Dart game logic. 43 tests, no Flutter dep. |
 | `app/` | Flutter Android app (sensors, map, UI) |
-| `scripts/` | `patch_android_manifest.sh` — injects permissions post-generate |
+| `scripts/` | `patch_android_manifest.sh` — permissions after `flutter create` |
 | `prototype/index.html` | Playable claim-loop prototype |
 | `tests/` | 48-assertion suite + Supabase shim |
 
-**Restore a working environment**
+### Restore a working environment
 
 ```bash
 git clone https://github.com/NematUllah9812/terrastep.git && cd terrastep
 
-# 1. Toolchain (NOT persisted anywhere — see ISSUES_LOG #3)
+# 1. Toolchain (NOT persisted — ISSUES_LOG #3)
 sudo apt-get install -y postgresql        # or: brew install postgresql@17
 
-# 2. Git identity (resets — see ISSUES_LOG #4)
+# 2. Git identity (resets — ISSUES_LOG #4)
 git config user.email "nematullah9812@users.noreply.github.com"
 git config user.name  "NematUllah9812"
 
 # 3. Verify everything still works
 ./tests/run_tests.sh                      # expect: ALL 48 TESTS PASSED
 
-# 4. Core logic (needs Dart only; Flutter not required)
+# 4. Core logic (Dart only; Flutter not required)
 cd packages/terrastep_core && dart pub get && dart test   # expect: 43 passed
 ```
 
 If both suites are green, backend and client core are intact.
 The prototype needs nothing — open `prototype/index.html` in any browser.
+The APK needs nothing — download `releases/terrastep-debug.apk`.
 
 ---
 
 ## 1. Honest Summary
 
-**Where we are: the referee is finished and tested, and there is now a
-holdable game — a debug APK that claims hexes offline. It has not been
-walked on a real phone yet.**
+**The referee is finished and tested. There is now a holdable game — a
+debug APK that claims hexes offline. It has not been walked on a real
+phone yet.**
 
-The backend is genuinely working code, not pseudocode — 48 behavioural
-assertions pass covering claiming, contesting, hysteresis, decay,
-idempotency, teleport rejection and shadow-banning.
+The backend is real code, not a sketch: 48 behavioural assertions pass
+(claiming, contesting, hysteresis, decay, idempotency, teleport rejection,
+shadow-banning).
 
 The client is past "not started". Sensors, map, H3, local persist and the
-debug overlay compile into an installable APK. What has *not* happened is
-the only test that matters: a human walking a block with the screen on,
-then (later) a 30-minute pocket test with a foreground service.
+debug overlay compile into an installable APK that lives in this repo.
+The only test that matters has not happened: a human walking a block with
+the screen on, then (later) a 30-minute pocket test with a foreground
+service.
 
-**A useful way to think about it:** the referee is done. The board exists.
-We have not yet played a real game on it.
+The referee is done. The board exists. We have not yet played a real game
+on it.
 
 | | Status |
 |---|---|
 | Design & architecture | ✅ Complete |
 | Database schema | ✅ Written + verified deploys |
-| Claim/contest/decay engine | ✅ Written + 48 tests passing |
+| Claim / contest / decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
-| Supabase deployment | ❌ Not done (tested locally only) |
-| Flutter app | 🟡 Compiles; needs a device walk |
+| Supabase deployment | ❌ Local Postgres only |
+| Flutter app | 🟡 Compiles; APK in `releases/` |
 | Real GPS / steps / battery | 🟡 Instrumented, unmeasured |
 | Store submission | ❌ Not started |
 
@@ -153,54 +177,54 @@ We have not yet played a real game on it.
 
 ## 2. Threshold-by-Threshold Status
 
-Legend: ✅ done & verified · 🟡 partial · ⬜ not started
+Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not started
 
-### PHASE 0 — De-risk Spike *(0 / 3, 2 waiting on a walk)*
-
-| # | Threshold | Status | Note |
-|---|---|---|---|
-| 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | **Compiles.** flutter_map + OSM + blue dot in the APK. Not MapLibre (see #21). Needs a device to confirm the tiles load and the dot tracks. |
-| 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | **Compiles.** Real `h3_flutter` 0.7.1, hex ids padded to 15 chars to match h3-js. Still unverified against h3-js on a known coordinate (O9). |
-| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **The GO/NO-GO gate.** This build is foreground-only. Do the screen-on walk first; the pocket test waits on O11. |
-
-### PHASE 1 — Local Prototype *(1 / 8, 6 waiting on a walk)*
+### PHASE 0 — De-risk Spike *(0 / 3 done, 2 waiting on a walk)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 1.1 | Map basemap | 🟡 | flutter_map + OSM tiles compile; **needs on-device verification** |
-| 1.2 | Location permissions | 🟡 | Android flow + ACTIVITY_RECOGNITION implemented; needs device test |
-| 1.3 | H3 integration | 🟡 | `H3Indexer` against the `CellIndexer` seam; **unverified against h3-js** |
-| 1.4 | Hex grid overlay | 🟡 | Real H3 polygons via `PolygonLayer`; claimed hexes persist on the map |
-| 1.5 | Step source (HealthKit / Health Connect) | 🟡 | Hardware pedometer wired; Health Connect still later. Falls back to 0.78 m stride if no sensor. |
-| 1.6 | `SessionAccumulator` + 6 unit tests | ✅ | **Implemented and verified: 27/27 passing.** Pure Dart. Found and fixed a cell-claiming exploit (ISSUES_LOG #17) |
-| 1.7 | Local claim + persist | 🟡 | Claim + SharedPreferences persistence written; needs device test |
-| 1.8 | Background survival, <4%/hr | ⬜ | **Boss fight of Phase 1.** Foreground service not implemented (O11). |
+| 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | Compiles. flutter_map + OSM + blue dot (not MapLibre — #21). Needs tiles + tracking on a phone. |
+| 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | Compiles. Real `h3_flutter` 0.7.1, ids padded to 15 chars. Unverified against h3-js (O9). |
+| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **GO/NO-GO.** This APK is foreground-only. Pocket test waits on O11. |
 
-### PHASE 2 — Backend & Persistence *(3 / 9)*
+### PHASE 1 — Local Prototype *(1 / 8 done, 6 waiting on a walk)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 2.1 | Supabase project + schema applied | 🟡 | Schema **written and verified to deploy cleanly** on Postgres 17. Not yet run on a real Supabase project. |
+| 1.1 | Map basemap | 🟡 | flutter_map + OSM compile; needs on-device fps / tile check |
+| 1.2 | Location permissions | 🟡 | Foreground location + ACTIVITY_RECOGNITION implemented |
+| 1.3 | H3 integration | 🟡 | `H3Indexer` on the `CellIndexer` seam; unverified vs h3-js |
+| 1.4 | Hex grid overlay | 🟡 | Real H3 polygons; claimed hexes stay on the map |
+| 1.5 | Step source | 🟡 | Hardware pedometer + 0.78 m stride fallback. Health Connect later. |
+| 1.6 | `SessionAccumulator` + unit tests | ✅ | 27/27 passing. Fixed the armchair-claim exploit (#17). |
+| 1.7 | Local claim + persist | 🟡 | SharedPreferences written; needs force-quit test on device |
+| 1.8 | Background survival, <4%/hr | ⬜ | Foreground service not implemented (O11). |
+
+### PHASE 2 — Backend & Persistence *(4 / 9)*
+
+| # | Threshold | Status | Note |
+|---|---|---|---|
+| 2.1 | Supabase project + schema applied | 🟡 | Deploys cleanly on Postgres 17. Not on a real Supabase project. |
 | 2.2 | Auth (magic link + OAuth) | ⬜ | |
-| 2.3 | Profile auto-creation trigger | ✅ | `on_auth_user_created` written; exercised by the test fixtures |
-| 2.4 | RLS hostile test | 🟡 | Policies written (public read, zero direct write). The hostile test itself is **not** written — needs a real JWT to be meaningful. |
-| 2.5 | `claim_cells` RPC deployed | ✅ | **48 assertions passing**, incl. all 5 required rejection fixtures |
-| 2.6 | Outbox + sync worker | 🟡 | **Logic implemented + 16 tests passing** (`app/lib/data/`), incl. the airplane-mode acceptance test. Needs Drift/SQLite backing for real durability (ISSUES_LOG #19) |
-| 2.7 | `get_cells_in_view` | ✅ | Written; not yet load-tested for the <200 ms target |
-| 2.8 | Server-driven map render | ⬜ | Needs the app |
-| 2.9 | Naming + colour | ✅ | `update_territory` + auth checks tested (I1–I4) |
+| 2.3 | Profile auto-creation trigger | ✅ | `on_auth_user_created`; exercised by fixtures |
+| 2.4 | RLS hostile test | 🟡 | Policies written. Hostile test needs a real JWT. |
+| 2.5 | `claim_cells` RPC | ✅ | 48 assertions, including all 5 required rejections |
+| 2.6 | Outbox + sync worker | 🟡 | Logic + 16 tests. Needs Drift/SQLite for real durability. |
+| 2.7 | `get_cells_in_view` | ✅ | Written; not load-tested for <200 ms |
+| 2.8 | Server-driven map render | ⬜ | Needs the app + a server |
+| 2.9 | Naming + colour | ✅ | `update_territory` + auth checks (I1–I4) |
 
 ### PHASE 3 — Multiplayer *(2 / 8)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 3.1 | Region-scoped realtime subscribe | ⬜ | Client side. Channel strategy decided (res-5 parent). |
-| 3.2 | Broadcast on ownership change | 🟡 | `realtime.send()` call written and firing correctly in tests — but against a **shim**, not real Supabase Realtime |
-| 3.3 | Contest + hysteresis | ✅ | **Verified.** Tests C6–C10, D1–D3 confirm the exact 395 flip point |
-| 3.4 | Lazy decay + prune | ✅ | **Verified.** Tests E1–E6: half-life exact, prune reverts to neutral |
-| 3.5 | Contested-state rendering | 🟡 | Working in the JS prototype (hatch overlay); not in Flutter |
-| 3.6 | Profile & stats | 🟡 | Counters maintained + tested (C10); no UI |
-| 3.7 | Leaderboards | 🟡 | Matviews + cron refresh written; never populated or benchmarked |
+| 3.1 | Region-scoped realtime subscribe | ⬜ | Channel strategy decided (res-5 parent). |
+| 3.2 | Broadcast on ownership change | 🟡 | `realtime.send()` fires in tests against a **shim** |
+| 3.3 | Contest + hysteresis | ✅ | C6–C10, D1–D3 — exact 395 flip point |
+| 3.4 | Lazy decay + prune | ✅ | E1–E6 — half-life exact, prune → neutral |
+| 3.5 | Contested-state rendering | 🟡 | Works in the JS prototype; not in Flutter |
+| 3.6 | Profile & stats | 🟡 | Counters tested (C10); no UI |
+| 3.7 | Leaderboards | 🟡 | Matviews + cron written; never populated |
 | 3.8 | Push notification | ⬜ | |
 
 ### PHASE 4 — Anti-Cheat *(3 / 8)*
@@ -208,13 +232,13 @@ Legend: ✅ done & verified · 🟡 partial · ⬜ not started
 | # | Threshold | Status | Note |
 |---|---|---|---|
 | 4.1 | Mock-location detection | ⬜ | Client side |
-| 4.2 | Accuracy + jitter filter | 🟡 | Server accuracy gate ✅ tested (A7); client Kalman filter not built |
-| 4.3 | Server speed envelope | ✅ | Test A3 |
-| 4.4 | Path continuity / teleport | ✅ | Tests G1–G4 (Abbottabad→Karachi rejected, adjacent walk accepted) |
-| 4.5 | Ratio sanity | ✅ | Tests A2a, A2b, A4 |
-| 4.6 | Rate limiting | 🟡 | **Written but NOT tested.** Needs a 60-cell fixture. Known gap. |
-| 4.7 | Behavioural scoring | 🟡 | `score_suspicion()` written in `04_ANTI_CHEAT.md §4` but **not deployed or tested**. Suspicion *increments* are tested (G3). |
-| 4.8 | Rollback tooling | 🟡 | `admin_rollback_user()` written, **untested** |
+| 4.2 | Accuracy + jitter filter | 🟡 | Server gate tested (A7). Client uses displacement-anchor, not Kalman. |
+| 4.3 | Server speed envelope | ✅ | A3 |
+| 4.4 | Path continuity / teleport | ✅ | G1–G4 |
+| 4.5 | Ratio sanity | ✅ | A2a, A2b, A4 |
+| 4.6 | Rate limiting | 🟡 | Written, **not tested**. Needs a 60-cell fixture. |
+| 4.7 | Behavioural scoring | 🟡 | `score_suspicion()` written, not deployed |
+| 4.8 | Rollback tooling | 🟡 | `admin_rollback_user()` written, untested |
 
 ### PHASE 5 — Polish & Launch *(0 / 9)*
 
@@ -235,69 +259,69 @@ All ⬜. Not started.
 | **Total** | **10** | **20** | **15** | **45** |
 
 **Fully complete: 10 / 45 (22%).**
-Counting partials at half credit: ~20 / 45 (**~44%**).
+Partials at half credit: ~20 / 45 (**~44%**).
+
 The percentage barely moved because the APK is *instrumentation*, not
 acceptance. 0.1 / 0.2 / 1.1–1.5 / 1.7 flip to ✅ the moment a hex fills
 on a real sidewalk.
 
-**Hours burned vs. estimate:** roughly 30–35 h of the ~215 h estimate — but
-weighted heavily toward design, which front-loads. The remaining work is more
-implementation-dense than the raw percentage suggests.
+**Hours burned vs. estimate:** roughly 35–40 h of the ~215 h estimate —
+front-loaded on design. Remaining work is more implementation-dense than
+the raw percentage suggests.
 
 ---
 
 ## 4. What Actually Got Verified
 
-This is the part worth being precise about, because "written" and "working" are
-different things.
+"Written" and "working" are different things. This is the working list.
 
 ```
-Postgres 17.10 · 01_DATA_MODEL.sql + 02_CLAIM_ENGINE.sql applied cleanly
-48 / 48 assertions passing
+Postgres 17 · 01_DATA_MODEL.sql + 02_CLAIM_ENGINE.sql applied cleanly
+48 / 48 SQL assertions passing
+43 / 43 Dart core tests passing
+flutter analyze: No issues found
+flutter build apk --debug --target-platform android-arm64: 45 MB APK
+APK contains lib/arm64-v8a/libh3.so + libflutter.so
 ```
 
 | Group | Assertions | Covers |
 |---|---|---|
 | A — Validation rules | 13 | All 9 rejection rules + valid-walk acceptance |
 | B — Effort scoring | 2 | Formula exactness (529.50), cap at 600 |
-| C — Ownership lifecycle | 10 | claim → reinforce → contest → capture, counter upkeep |
-| D — Hysteresis | 3 | The exact 395 flip boundary, both sides |
+| C — Ownership lifecycle | 10 | claim → reinforce → contest → capture |
+| D — Hysteresis | 3 | Exact 395 flip boundary, both sides |
 | E — Decay | 6 | Half-life precision, neutral reversion, prune |
-| F — Idempotency | 3 | Retry returns cache, no double-count, one ledger row |
-| G — Path continuity | 4 | Teleport rejected, adjacent walk accepted, suspicion bump |
+| F — Idempotency | 3 | Retry returns cache, no double-count |
+| G — Path continuity | 4 | Teleport rejected, adjacent walk accepted |
 | H — Enforcement | 3 | Shadow ban returns success but writes nothing |
-| I — Customisation | 4 | Owner can rename, non-owner cannot, bad colour rejected |
+| I — Customisation | 4 | Owner can rename, non-owner cannot |
 
-Reproduce with `./tests/run_tests.sh` (needs only local `postgresql`).
+Reproduce SQL: `./tests/run_tests.sh`
+Reproduce Dart: `cd packages/terrastep_core && dart pub get && dart test`
 
-**Deliberately not verified yet:** rate limiting (4.6), behavioural scoring
-(4.7), rollback (4.8), real Supabase Realtime delivery, RLS under a genuine
-`authenticated` JWT, and any performance/latency target.
+**Not verified yet:** rate limiting (4.6), behavioural scoring (4.7),
+rollback (4.8), real Supabase Realtime, RLS under a genuine JWT, any
+latency target, and **anything on a real phone**.
 
 ---
 
 ## 5. Known Gaps & Risks
 
-**Carried-forward test debt** — small, worth clearing before Phase 3:
-1. Rate-limit path (4.6) — needs a 60-cell fixture asserting the 51st is refused.
-2. `score_suspicion()` (4.7) — needs deploying plus a synthetic bot profile.
-3. `admin_rollback_user()` (4.8) — needs a fixture proving reassignment to the
-   next-strongest contender.
-4. RLS hostile test (2.4) — requires a real Supabase JWT; can't be faked by the
-   local shim.
+**Test debt — clear before Phase 3**
 
-**Environmental caveat:** everything was validated against vanilla Postgres 17
-using a shim for `auth.uid()`, `realtime.send()` and PostGIS. Two things must be
-re-checked on real Supabase:
-- Whether the `h3` extension is available (`select * from pg_available_extensions
-  where name like 'h3%'`). If yes, uncomment the `[H3-PG]` blocks — they close
-  the telemetry-replay hole completely.
-- Whether `realtime.send()` behaves as expected from inside a `SECURITY DEFINER`
-  function.
+1. Rate-limit path (4.6) — 60-cell fixture, 51st refused.
+2. `score_suspicion()` (4.7) — deploy + synthetic bot profile.
+3. `admin_rollback_user()` (4.8) — reassignment fixture.
+4. RLS hostile test (2.4) — needs a real Supabase JWT.
 
-**The three project-level risks are unchanged and all still ahead of us:**
-1. Background battery drain (threshold 0.3) — unproven, and everything depends
-   on it.
+**Must re-check on real Supabase**
+
+- `h3` extension available? (`select * from pg_available_extensions where name like 'h3%'`)
+- `realtime.send()` inside a `SECURITY DEFINER` function.
+
+**Project-level risks — all still ahead**
+
+1. Background battery drain (0.3 / 1.8) — unproven. Everything depends on it.
 2. Google Play background-location review — most first submissions rejected.
 3. Cold-start emptiness — launch to one neighbourhood, not the world.
 
@@ -305,24 +329,24 @@ re-checked on real Supabase:
 
 ## 6. Next Actions
 
-**Immediate (highest value per hour):**
+**Do these in this order. Nothing else first.**
 
-1. **Run the Phase 0 spike.** Three days, and it either de-risks the project or
-   tells you to redesign before you write 200 more hours of code. Nothing else
-   should be started first.
-2. **Deploy to a real Supabase project** (threshold 2.1 properly). ~1 hour, and
-   it flushes out the h3-pg and realtime questions above.
-3. **Clear the four test-debt items.** ~4 hours, keeps the suite honest.
+1. **Install [`releases/terrastep-debug.apk`](releases/terrastep-debug.apk)
+   and walk a block, screen on.** Screenshot the debug overlay. That walk
+   answers 0.1, 0.2, 1.1–1.5 and 1.7, and tells us whether the accuracy
+   gate / stride fallback / pedometer path are sane.
+2. **Foreground service (O11)** so the real 0.3 / 1.8 pocket test can run.
+3. **Deploy to a real Supabase project** (threshold 2.1, properly). ~1 hour.
+4. **Clear the four test-debt items.** ~4 hours.
 
-**Then:** Phase 1 in order, 1.1 → 1.8, with 1.8 given a full week.
+Then Phase 1 in order through 1.8, with 1.8 given a full week.
 
-**Infrastructure now in place:**
-- ✅ **CI** — `.github/workflows/tests.yml` runs the 48 assertions on every push
-  touching `*.sql` or `tests/`, plus a secret scan that fails the build on
-  committed GitHub PATs, `sb_secret_…` keys or raw JWTs.
-- ✅ **SECURITY.md** — credential handling rules, the Supabase
-  publishable/secret split, and leak-response steps. Written before Phase 2
-  introduces real keys.
+**Already in place**
+
+- ✅ CI — `.github/workflows/tests.yml` (48 SQL assertions + secret scan)
+- ✅ APK CI — `.github/workflows/build-apk.yml` (Flutter 3.27.4)
+- ✅ `SECURITY.md` — written before Phase 2 introduces real keys
+- ✅ Testing APK — `releases/terrastep-debug.apk`
 
 ---
 
@@ -330,12 +354,12 @@ re-checked on real Supabase:
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-18 | **First green APK.** Flutter 3.27.4, 45 MB arm64 debug, analyzer clean, `libh3.so` packed. Fixed the Dart 3.5/3.6 hole that would have killed attempt #2 (`h3_flutter` 0.7 → `h3_web` → `js` 0.7.2). Added ACTIVITY_RECOGNITION, stride-estimated steps, live battery %, overlay copy-dump. | #23, #24, #25 |
-| 2026-08-18 | **APK build #1 failed** on dependency resolution. Plugin versions were written from memory with open carets; `^8.10.4` resolved to a release needing Flutter 3.38. Pinned every version against the pub.dev API, pinned the toolchain to 3.24.5, dropped 2 unused plugins, made `terrastep_core` zero-dep. Added failure diagnostics to the run summary. | #22 |
-| 2026-08-18 | **Android app + APK CI.** Split pure logic into `packages/terrastep_core` (43 tests, stays Flutter-free) and added the `app/` Flutter package: H3Indexer, adaptive LocationService, StepService, TrackingCoordinator, map + debug overlay. GitHub Actions builds the APK on their runners. | — |
-| 2026-08-18 | **Threshold 2.6 logic complete.** Outbox + SyncWorker with batching, exponential backoff, idempotent retries. 43 client tests. Fixed a rate-limit bug that could shadow-ban a heavy walker. | #19 |
-| 2026-08-18 | **Threshold 1.6 complete.** Implemented `SessionAccumulator` + `GameConfig` as pure Dart with 27 passing tests. Fixed a stationary-jitter exploit that credited 1.1 km of phantom distance. Added a `client` CI job. | #17, #18 |
-| 2026-08-18 | Added `ISSUES_LOG.md` (now 22 entries, 11 open items) and a resume-anywhere section. | — |
-| 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost exec bit, and Postgres discovery across Debian/Homebrew/Postgres.app. Verified clean-slate run on a bare machine. | #10, #11, #12 |
-| 2026-08-17 | Switched from a classic PAT to a fine-grained, one-repo, 7-day token. | #13, #14, #15 |
+| 2026-08-18 | **APK committed to the repo.** `releases/terrastep-debug.apk` (45 MB). Docs reorganized so install / status / issues agree. | #27 |
+| 2026-08-18 | **First green APK.** Flutter 3.27.4, analyzer clean, `libh3.so` packed. Built on a 2 GB box with 4 GB swap and Temurin 17 (Debian 13 has no JDK 17). | #23, #24, #25, #26 |
+| 2026-08-18 | **APK build #1 failed** on open carets pulling plugins that need Flutter 3.38. Versions pinned against pub.dev. | #22 |
+| 2026-08-18 | Android app + APK CI. Logic split into `packages/terrastep_core`. | — |
+| 2026-08-18 | Threshold 2.6: outbox + sync worker. 43 client tests. | #19 |
+| 2026-08-18 | Threshold 1.6: `SessionAccumulator`. Fixed armchair-claim exploit. | #17, #18 |
+| 2026-08-18 | `ISSUES_LOG.md`, resume-anywhere section, CI + `SECURITY.md`. | #10–#12, #16 |
+| 2026-08-17 | Fine-grained one-repo 7-day token. | #13–#15 |
 | 2026-08-17 | Initial plan, schema, claim engine, prototype, 48-test suite. | #1–#9 |

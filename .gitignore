@@ -48,4 +48,7 @@ app/web/
 app/.dart_tool/
 app/build/
 app/pubspec.lock
+
+# CI / local build output. The *deliverable* APK is committed under
+# releases/ so it can be downloaded from the repo on a phone (#27).
 dist/

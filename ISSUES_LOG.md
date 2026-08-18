@@ -5,9 +5,46 @@ Written so the project can be picked up on a different machine, weeks later,
 without rediscovering the same problems.
 
 **Format:** each entry has Symptom → Cause → Fix → Prevention.
-Newest phase last. `#` numbers are stable — reference them in commits.
+`#` numbers are stable — reference them in commits. Newest in each section last.
 
 **Legend:** 🔴 blocked work · 🟡 slowed work · 🟢 caught before it bit us
+
+**How to read this:** if you are resuming, read *Recurring Patterns* at the
+bottom first, then *Open Items*. The numbered entries are the paper trail.
+
+---
+
+## Index
+
+| # | Title | Sev |
+|---|---|---|
+| [1](#1--node---check-fails-on-a-process-substitution) | `node --check` fails on a process substitution | 🟡 |
+| [2](#2--apt-get-install-fails-without-sudo-silently) | `apt-get install` fails without sudo | 🟡 |
+| [3](#3--installed-packages-dont-survive-between-sessions) | Installed packages don't survive sessions | 🔴 |
+| [4](#4--git-identity-lost-between-sessions) | Git identity lost between sessions | 🟡 |
+| [5](#5--supabase-only-extensions-unavailable-locally) | Supabase extensions unavailable locally | 🔴 |
+| [6](#6--authuid-and-realtimesend-dont-exist-outside-supabase) | `auth.uid()` / `realtime.send()` missing | 🔴 |
+| [7](#7--postgis-geography-type-unavailable) | PostGIS `geography` unavailable | 🟡 |
+| [8](#8--test-expectation-wrong-validation-rules-are-order-dependent) | Test expected the wrong rejection | 🟢 |
+| [9](#9--test-fixture-violated-its-own-time-window) | Fixture violated its own time window | 🟢 |
+| [10](#10--run_testssh-unusable-after-clone) | `run_tests.sh` lost its exec bit | 🔴 |
+| [11](#11--postgres-binary-discovery-too-narrow) | Postgres binary discovery too narrow | 🟡 |
+| [16](#16--run_testssh-not-re-runnable--orphaned-postmaster-holds-the-port) | Orphaned postmaster holds the port | 🔴 |
+| [12](#12--ci-secret-scanner-would-have-failed-on-its-own-documentation) | Secret scanner matched its own docs | 🟢 |
+| [13](#13--a-credential-was-pasted-into-chat) | A credential was pasted into chat | 🔴 |
+| [14](#14--fine-grained-tokens-cannot-create-repositories) | Fine-grained tokens cannot create repos | 🟡 |
+| [15](#15--workflow-files-need-a-separate-permission) | Workflow files need a separate permission | 🟡 |
+| [17](#17--stationary-gps-jitter-accumulated-11-km-of-phantom-distance) | Stationary GPS jitter claimed a cell | 🔴 |
+| [18](#18--a-too-aggressive-fix-broke-the-golden-path) | Anti-drift filter erased real walks | 🟡 |
+| [19](#19--rate-limiting-backed-off-one-batch-instead-of-the-queue) | Rate-limit backoff was per-batch | 🔴 |
+| [20](#20--adding-flutter-would-have-made-the-logic-tests-need-an-emulator) | Flutter would have killed `dart test` | 🟢 |
+| [21](#21--maplibre-would-have-complicated-the-ci-apk-build) | MapLibre would have complicated CI | 🟢 |
+| [22](#22--first-apk-build-failed-open-carets-pulled-in-too-new-plugins) | Open carets pulled too-new plugins | 🔴 |
+| [23](#23--h3_flutter-07x-cannot-resolve-on-flutter-3245) | `h3_flutter` 0.7.x vs Flutter 3.24.5 | 🔴 |
+| [24](#24--colorwithvalues-does-not-exist-on-flutter-324) | `Color.withValues` is 3.27+ | 🟢 |
+| [25](#25--pedometer-would-have-been-silently-empty-on-android-10) | Pedometer silent without runtime grant | 🟡 |
+| [26](#26--local-apk-build-on-a-2-gb-box) | Local APK build on a 2 GB box | 🟡 |
+| [27](#27--the-apk-was-built-but-not-in-the-repo) | APK was built but gitignored | 🟡 |
 
 ---
 
@@ -694,6 +731,62 @@ bug.
 
 ---
 
+### #26 🟡 Local APK build on a 2 GB box
+**Symptom** The plan said "the sandbox has 2 GB RAM and Gradle wants more,
+so build on GitHub Actions." The Actions token on this session had
+Contents + Workflows but **not** Actions:read, so we could neither
+watch a CI run nor download its artifact. The APK had to be produced
+here or not at all.
+
+**Cause** Three compounding environment facts, none of them in the repo:
+1. **1.9 GB RAM, 0 swap.** Gradle's default heap will OOM.
+2. **Debian 13 (Trixie) has no `openjdk-17-jdk`.** Only 21 and 25.
+   Flutter 3.27 / AGP 8 still want 17.
+3. `swapon` is in `/usr/sbin`, which is not on the default `PATH`, so
+   a `set -e` setup script died after creating the swapfile.
+
+**Fix**
+- 4 GB swapfile (`fallocate` + `mkswap` + `/usr/sbin/swapon`)
+- Temurin 17 from Adoptium into `/opt/jdk17` (not apt)
+- Flutter **3.27.4** into `/opt/flutter` (see #23)
+- Android SDK 34 + NDK 25 (Flutter pulled NDK 25.1 and platforms 31/35
+  itself during the build)
+- `org.gradle.jvmargs=-Xmx1024m`, daemon off, workers=1
+- `flutter build apk --debug --target-platform android-arm64`
+
+**Verified** AssembleDebug 360.7 s. 45 MB APK. Contains
+`lib/arm64-v8a/libh3.so` (141 KB) and `libflutter.so`.
+
+**Prevention** Document the local-build recipe next to the "we build on
+CI" claim, because CI is only useful if you can read the artifact. And
+never assume `openjdk-17-jdk` exists — check `apt-cache search openjdk`
+first.
+
+---
+
+### #27 🟡 The APK was built but not in the repo
+**Symptom** After the green build, the only copy lived at
+`/home/user/Terrastep-debug.apk` and `dist/terrastep-debug.apk`.
+`dist/` is gitignored (CI output). The phone-install instructions
+pointed at "this workspace" and at Actions artifacts — neither of
+which is the git repo the user actually opens.
+
+**Cause** `.gitignore` treats every APK as a build product. That is
+correct for `app/build/` and `dist/`. It is wrong for the *deliverable*
+the next person (or the same person, on a phone) needs to download.
+
+**Fix** Commit the tested artifact to `releases/terrastep-debug.apk`
+and point README / CURRENT_PROGRESS / app/README at that path.
+`dist/` stays ignored. 45 MB is under GitHub's 100 MB file limit and
+under the 50 MB warning threshold.
+
+**Prevention** If the deliverable is a file a human has to tap, it
+belongs in the repo (or a Release), not in a gitignored build folder
+and not only in an Actions artifact that needs a different token
+permission to read.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
@@ -707,7 +800,7 @@ Known problems not yet solved. Carry these forward.
 | O5 | `admin_rollback_user()` untested | 4.8 | Needs a reassignment fixture |
 | O6 | RLS hostile test not written | 2.4 | Needs a real JWT — can't be shimmed |
 | O7 | Background battery drain unmeasured | 0.3 | **Highest project risk — awaiting device test** |
-| O8 | APK still not compiled | 1.1 | **Resolved 2026-08-18.** 45 MB arm64 debug APK built locally on Flutter 3.27.4. `libh3.so` present. Device walk is now the gate, not the compiler. |
+| O8 | APK still not compiled | 1.1 | **Resolved 2026-08-18.** 45 MB arm64 debug APK in `releases/terrastep-debug.apk`. Device walk is now the gate, not the compiler. |
 | O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
 | O10 | Anti-drift filter untuned against real GPS | 4.2 | Tuned on synthetic jitter. Real GPS may need a different `_anchorFactor`. |
 | O11 | Foreground service not implemented | 1.8 | Tracking currently stops when the app is backgrounded. Needed for the real battery test. |
