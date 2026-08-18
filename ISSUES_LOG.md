@@ -556,6 +556,69 @@ environment is worth less than an adequate one that ships today.
 
 ---
 
+### #22 🔴 First APK build failed: open carets pulled in too-new plugins
+**Symptom** `Build Android APK` failed after 1m37s — too fast to be a Gradle
+compile failure, which pointed at dependency resolution.
+
+**Cause** The plugin versions in `app/pubspec.yaml` were written from memory
+rather than checked, and used open carets. Checking pub.dev showed what `^`
+actually resolves to today:
+
+| Declared | Resolves to | Requires |
+|---|---|---|
+| `flutter_foreground_task: ^8.10.4` | **10.0.0** | Flutter >=3.38 |
+| `shared_preferences: ^2.3.2` | **2.5.5** | Flutter >=3.35 |
+| `pedometer: ^4.0.2` | **4.2.0** | Dart >=3.8 |
+| `flutter_map: ^7.0.2` | 7.0.2 | ok |
+| `geolocator: ^13.0.1` | **14.0.3** | newer AGP |
+
+A caret is a promise that every future minor release stays compatible. Flutter
+plugins routinely raise their minimum SDK in minor versions, so that promise
+does not hold, and the build broke without a single commit changing.
+
+Compounded by `channel: stable` in the workflow, which is a *moving* toolchain.
+Moving deps against a moving SDK means a green build can turn red overnight.
+
+**Fix** Four changes:
+
+1. **Explicit upper bounds**, every version verified against pub.dev's API:
+   ```yaml
+   flutter_map: ">=7.0.2 <8.0.0"        # 8.x needs Flutter >=3.27
+   shared_preferences: ">=2.3.5 <2.4.0" # 2.5.x needs Flutter >=3.35
+   pedometer: ">=4.0.2 <4.1.0"          # 4.2.0 needs Dart 3.8
+   geolocator: ">=13.0.4 <14.0.0"
+   latlong2: ">=0.9.1 <0.10.0"          # flutter_map 7.x requires ^0.9.1
+   ```
+2. **Pinned the toolchain**: `flutter-version: '3.24.5'` instead of `stable`.
+3. **Dropped unused plugins.** `flutter_foreground_task` and
+   `permission_handler` were declared but never imported — the former caused
+   the failure. geolocator handles its own permission requests.
+4. **Made `terrastep_core` zero-dependency.** It declared `meta: ^1.15.0`
+   without using it; Flutter pins `meta` via the SDK, so that was a latent
+   resolution conflict for no benefit.
+
+Also verified the transitive graph by hand: `flutter_map 7.0.2` requires
+`latlong2 ^0.9.1`, which is why latlong2 needed the `<0.10.0` cap.
+
+**Also fixed: the failure was hard to diagnose.** The workflow now
+- writes `pub get` and build output to files, uploaded as a `build-logs`
+  artifact,
+- prints the error to `$GITHUB_STEP_SUMMARY`, so the actual message is visible
+  on the run's summary page without opening raw logs,
+- runs `flutter pub deps` to record what actually resolved,
+- makes `flutter analyze` non-blocking, so a lint warning can't hide whether
+  the APK compiles.
+
+**Prevention** **Never guess a version number.** pub.dev has a JSON API; one
+curl per package confirms the version exists and what SDK it needs:
+```bash
+curl -s https://pub.dev/api/packages/<pkg> | jq '.latest.version, .latest.pubspec.environment'
+```
+And for an app that must keep building unattended, prefer explicit bounds and a
+pinned toolchain over carets and `stable`.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
@@ -569,7 +632,7 @@ Known problems not yet solved. Carry these forward.
 | O5 | `admin_rollback_user()` untested | 4.8 | Needs a reassignment fixture |
 | O6 | RLS hostile test not written | 2.4 | Needs a real JWT — can't be shimmed |
 | O7 | Background battery drain unmeasured | 0.3 | **Highest project risk — awaiting device test** |
-| O8 | APK has never been compiled | 1.1 | No Flutter SDK here. First CI run may fail on a dependency or plugin Gradle config; fix from the log. |
+| O8 | APK still not compiled | 1.1 | First attempt failed on deps (#22). Versions now verified against pub.dev, but no Flutter SDK here to prove the Gradle stage. |
 | O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
 | O10 | Anti-drift filter untuned against real GPS | 4.2 | Tuned on synthetic jitter. Real GPS may need a different `_anchorFactor`. |
 | O11 | Foreground service not implemented | 1.8 | Tracking currently stops when the app is backgrounded. Needed for the real battery test. |

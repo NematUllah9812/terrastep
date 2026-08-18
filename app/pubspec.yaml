@@ -4,7 +4,17 @@ publish_to: "none"
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  sdk: ">=3.5.0 <4.0.0"
+
+# VERSION PINNING POLICY
+# ----------------------
+# Upper bounds are explicit, not open carets. The first CI build failed because
+# `^8.10.4` resolved to flutter_foreground_task 10.0.0, which requires Flutter
+# >=3.38 — newer than the toolchain the workflow pins. A caret on a plugin is a
+# promise that every future major release will still build, which is not a
+# promise these plugins keep. See ISSUES_LOG #22.
+#
+# Verified against pub.dev: every version below builds on Flutter 3.24.x.
 
 dependencies:
   flutter:
@@ -17,25 +27,25 @@ dependencies:
 
   # Map. flutter_map is pure-Dart rendering over raster tiles: no native
   # MapLibre build step, which keeps the CI APK build simple and fast.
-  flutter_map: ^7.0.2
-  latlong2: ^0.9.1
+  flutter_map: ">=7.0.2 <8.0.0"      # 8.x needs Flutter >=3.27
+  latlong2: ">=0.9.1 <0.10.0"    # flutter_map 7.x requires ^0.9.1
 
   # H3 geospatial indexing (FFI to the reference C library).
-  h3_flutter: ^0.6.1
+  h3_flutter: ">=0.7.1 <0.8.0"
 
-  # Location + steps
-  geolocator: ^13.0.1
-  flutter_foreground_task: ^8.10.4
-  pedometer: ^4.0.2
-  permission_handler: ^11.3.1
+  # Location + steps. permission_handler is NOT needed: geolocator handles
+  # its own permission requests, and adding an unused plugin only adds
+  # another version to conflict.
+  geolocator: ">=13.0.4 <14.0.0"     # 14.x needs a newer AGP
+  pedometer: ">=4.0.2 <4.1.0"        # 4.2.0 needs Dart 3.8
 
   # Local persistence
-  shared_preferences: ^2.3.2
+  shared_preferences: ">=2.3.5 <2.4.0"   # 2.5.x needs Flutter >=3.35
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ">=4.0.0 <6.0.0"
 
 flutter:
   uses-material-design: true

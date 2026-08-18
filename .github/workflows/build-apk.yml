@@ -10,7 +10,8 @@ name: Build Android APK
 #   3. Scroll to Artifacts -> tap "terrastep-debug-apk" -> downloads a .zip
 #   4. Unzip on the phone, tap the .apk, allow "install unknown apps"
 #
-# Artifacts are kept for 30 days.
+# IF IT FAILS: the job summary page shows the error without opening logs.
+# A full build log is also uploaded as the "build-logs" artifact.
 
 on:
   push:
@@ -18,8 +19,9 @@ on:
     paths:
       - 'app/**'
       - 'packages/**'
+      - 'scripts/**'
       - '.github/workflows/build-apk.yml'
-  workflow_dispatch:   # lets you trigger a build by hand from the Actions tab
+  workflow_dispatch:   # trigger a build by hand from the Actions tab
 
 jobs:
   build:
@@ -36,48 +38,72 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Flutter
+      # Pinned, not floating 'stable'. The first build failed because open
+      # carets resolved plugins needing a newer Flutter than the runner had
+      # (ISSUES_LOG #22). A moving toolchain plus moving deps means a build
+      # that works today can break tomorrow with no commit in between.
+      - name: Set up Flutter 3.24.5
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.5'
           channel: stable
           cache: true
 
-      - name: Flutter doctor
-        run: flutter doctor -v
+      - name: Toolchain versions
+        run: |
+          flutter --version
+          dart --version
+          java -version 2>&1
 
-      # The Flutter package depends on ../packages/terrastep_core by path,
-      # so that package must resolve first.
+      # `flutter create` regenerates platform folders from a template. It can
+      # also rewrite pubspec.yaml, so it is preserved explicitly.
+      - name: Generate Android platform files
+        working-directory: app
+        run: |
+          cp pubspec.yaml /tmp/pubspec.backup
+          flutter create --platforms=android \
+            --org io.terrastep --project-name terrastep . 2>&1 | tail -20
+          cp /tmp/pubspec.backup pubspec.yaml
+          echo "--- android/ generated ---"
+          ls android/app/src/main/
+
+      - name: Apply Android manifest permissions
+        working-directory: app
+        run: |
+          bash ../scripts/patch_android_manifest.sh
+          echo "--- manifest ---"
+          cat android/app/src/main/AndroidManifest.xml
+
       - name: Resolve core package
         working-directory: packages/terrastep_core
         run: dart pub get
 
       - name: Resolve app dependencies
-        working-directory: app
-        run: flutter pub get
-
-      - name: Analyze
-        working-directory: app
-        run: flutter analyze --no-fatal-infos
-
-      # `flutter create` generates the android/ and ios/ platform folders.
-      # They are NOT committed (they are large, mostly generated, and churn
-      # noisily), so we regenerate them here. `--platforms android` leaves
-      # lib/ and pubspec.yaml untouched.
-      - name: Generate Android platform files
+        id: pubget
         working-directory: app
         run: |
-          flutter create --platforms=android \
-            --org io.terrastep --project-name terrastep .
+          set -o pipefail
+          flutter pub get 2>&1 | tee /tmp/pubget.log
 
-      - name: Apply Android manifest permissions
+      - name: Resolved dependency versions
         working-directory: app
-        run: bash ../scripts/patch_android_manifest.sh
+        run: flutter pub deps --style=compact 2>&1 | head -40
+
+      # Non-blocking: analyzer complaints should not stop us finding out
+      # whether the APK actually compiles. Real errors surface in the build.
+      - name: Analyze
+        continue-on-error: true
+        working-directory: app
+        run: flutter analyze 2>&1 | tail -40
 
       - name: Build debug APK
+        id: build
         working-directory: app
-        run: flutter build apk --debug
+        run: |
+          set -o pipefail
+          flutter build apk --debug 2>&1 | tee /tmp/build.log
 
-      - name: Rename with run number
+      - name: Package APK
         working-directory: app
         run: |
           mkdir -p ../dist
@@ -85,7 +111,7 @@ jobs:
              "../dist/terrastep-debug-${{ github.run_number }}.apk"
           ls -lh ../dist
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: terrastep-debug-apk
@@ -93,12 +119,26 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      - name: Summary
+      # ---- diagnostics -----------------------------------------------------
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            /tmp/pubget.log
+            /tmp/build.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Success summary
+        if: success()
         run: |
           {
-            echo "### APK ready"
+            echo "### ✅ APK ready"
             echo ""
-            echo "**Download:** Artifacts section below → \`terrastep-debug-apk\`"
+            echo "**Download:** Artifacts below → \`terrastep-debug-apk\`"
             echo ""
             echo "| | |"
             echo "|---|---|"
@@ -108,6 +148,31 @@ jobs:
             echo ""
             echo "Install: unzip, tap the .apk, allow install from unknown sources."
             echo ""
-            echo "**Test:** grant location, walk ~120 steps in one hex, watch it fill."
-            echo "Then screen off + pocket for 30 min and check battery usage."
+            echo "**Test with the screen ON and the app open** — this build has"
+            echo "no foreground service yet, so tracking stops when backgrounded."
+            echo "Walk ~120 steps in one hex and watch it fill."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Puts the actual error on the summary page, so it can be read (and
+      # screenshotted) without opening the raw logs.
+      - name: Failure summary
+        if: failure()
+        run: |
+          {
+            echo "### ❌ Build failed"
+            echo ""
+            if [ -f /tmp/pubget.log ] && grep -qi "version solving failed\|because\|conflict" /tmp/pubget.log; then
+              echo "#### Dependency resolution"
+              echo '```'
+              tail -40 /tmp/pubget.log
+              echo '```'
+            fi
+            if [ -f /tmp/build.log ]; then
+              echo "#### Build output (last 60 lines)"
+              echo '```'
+              tail -60 /tmp/build.log
+              echo '```'
+            fi
+            echo ""
+            echo "Full logs: \`build-logs\` artifact below."
           } >> "$GITHUB_STEP_SUMMARY"

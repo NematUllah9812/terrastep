@@ -11,9 +11,10 @@ environment:
 # under `dart test` with no emulator, no device and no Flutter SDK.
 # Flutter-dependent code lives in ../../app.
 
+# No dependencies at all. This package is deliberately zero-dep: `meta` was
+# removed because Flutter pins its own version via the SDK, and a mismatch
+# would break resolution in the app package for no benefit.
 dependencies:
-  # --- pure dart, safe to depend on now ---
-  meta: ^1.15.0
 
 
 dev_dependencies:
