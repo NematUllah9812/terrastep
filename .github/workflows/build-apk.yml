@@ -1,0 +1,113 @@
+name: Build Android APK
+
+# Builds a debug APK on GitHub's runners and publishes it as a downloadable
+# artifact. Runs on their hardware, not a local sandbox, so it is reproducible
+# and unaffected by whatever machine we happen to be working on.
+#
+# TO GET THE APK ON YOUR PHONE:
+#   1. GitHub app or browser -> repo -> Actions tab
+#   2. Open the newest "Build Android APK" run
+#   3. Scroll to Artifacts -> tap "terrastep-debug-apk" -> downloads a .zip
+#   4. Unzip on the phone, tap the .apk, allow "install unknown apps"
+#
+# Artifacts are kept for 30 days.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'packages/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:   # lets you trigger a build by hand from the Actions tab
+
+jobs:
+  build:
+    name: Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      # The Flutter package depends on ../packages/terrastep_core by path,
+      # so that package must resolve first.
+      - name: Resolve core package
+        working-directory: packages/terrastep_core
+        run: dart pub get
+
+      - name: Resolve app dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: app
+        run: flutter analyze --no-fatal-infos
+
+      # `flutter create` generates the android/ and ios/ platform folders.
+      # They are NOT committed (they are large, mostly generated, and churn
+      # noisily), so we regenerate them here. `--platforms android` leaves
+      # lib/ and pubspec.yaml untouched.
+      - name: Generate Android platform files
+        working-directory: app
+        run: |
+          flutter create --platforms=android \
+            --org io.terrastep --project-name terrastep .
+
+      - name: Apply Android manifest permissions
+        working-directory: app
+        run: bash ../scripts/patch_android_manifest.sh
+
+      - name: Build debug APK
+        working-directory: app
+        run: flutter build apk --debug
+
+      - name: Rename with run number
+        working-directory: app
+        run: |
+          mkdir -p ../dist
+          cp build/app/outputs/flutter-apk/app-debug.apk \
+             "../dist/terrastep-debug-${{ github.run_number }}.apk"
+          ls -lh ../dist
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terrastep-debug-apk
+          path: dist/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          {
+            echo "### APK ready"
+            echo ""
+            echo "**Download:** Artifacts section below → \`terrastep-debug-apk\`"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Build | #${{ github.run_number }} |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Size | $(du -h dist/*.apk | cut -f1) |"
+            echo ""
+            echo "Install: unzip, tap the .apk, allow install from unknown sources."
+            echo ""
+            echo "**Test:** grant location, walk ~120 steps in one hex, watch it fill."
+            echo "Then screen off + pocket for 30 min and check battery usage."
+          } >> "$GITHUB_STEP_SUMMARY"

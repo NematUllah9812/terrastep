@@ -24,7 +24,8 @@ All 48 pass.
 | **`05_COST_MODEL.md`** | Where the free tier actually breaks (~600 MAU on storage, ~430 DAU on egress) and the specific changes that push it to ~2,500 MAU. Real year-one cost: **$124**. |
 | **`06_MILESTONE_CHECKLIST.md`** | 45 thresholds across 6 phases, each with a binary acceptance test and an hour estimate. This is your actual work queue. |
 | **`CURRENT_PROGRESS.md`** | Where we are against those 45 thresholds, plus a "resume on any machine" setup section. **Start here when picking the project back up.** |
-| **`app/`** | Flutter client. `lib/core` + `lib/domain` are pure Dart with 27 passing tests — see `app/README.md`. |
+| **`packages/terrastep_core/`** | Pure-Dart game logic (accumulator, config, sync). 43 tests, no Flutter dependency. |
+| **`app/`** | Flutter Android app — sensors, map, debug overlay. See `app/README.md` for how to get the APK. |
 | **`ISSUES_LOG.md`** | Every blocker hit so far — symptom, cause, fix, prevention — plus open items carried forward. |
 | **`SECURITY.md`** | Credential handling: the Supabase publishable/secret split, token scoping, leak response. |
 | **`prototype/index.html`** | Zero-dependency browser prototype of the claim loop. Walk around, claim hexes, spawn rivals, watch territory decay. |
@@ -34,7 +35,13 @@ All 48 pass.
 
 ## Quick start
 
-### 1. Play the prototype (30 seconds)
+### 0. Get the APK on your Android phone
+
+Repo → **Actions** → newest *Build Android APK* → **Artifacts** →
+`terrastep-debug-apk`. No Flutter install needed; GitHub builds it.
+Details in [`app/README.md`](app/README.md).
+
+### 1. Play the browser prototype (30 seconds)
 
 Open `prototype/index.html` in any browser — no build, no network, no deps.
 
@@ -49,8 +56,8 @@ tuning here transfers directly to the server.
 ### 2. Verify the backend
 
 ```bash
-./tests/run_tests.sh                    # 48 SQL assertions
-cd app && dart pub get && dart test     # 27 client assertions
+./tests/run_tests.sh                                       # 48 SQL assertions
+cd packages/terrastep_core && dart pub get && dart test    # 43 Dart assertions
 ```
 
 Needs only `postgresql` and the Dart SDK — no Flutter, no emulator. It applies the real SQL files

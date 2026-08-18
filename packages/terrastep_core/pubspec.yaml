@@ -1,0 +1,21 @@
+name: terrastep_core
+description: Pure-Dart game logic for Terrastep. No Flutter dependency, so it runs under `dart test` in CI with no emulator.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+# PURE DART ONLY. Do not add package:flutter or any plugin here.
+# This package holds the claim/contest/decay logic and must stay runnable
+# under `dart test` with no emulator, no device and no Flutter SDK.
+# Flutter-dependent code lives in ../../app.
+
+dependencies:
+  # --- pure dart, safe to depend on now ---
+  meta: ^1.15.0
+
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^4.0.0

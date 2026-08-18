@@ -1,10 +1,10 @@
 import 'package:test/test.dart';
-import 'package:terrastep/core/game_config.dart';
-import 'package:terrastep/data/local/outbox.dart';
-import 'package:terrastep/data/remote/claim_api.dart';
-import 'package:terrastep/data/sync_worker.dart';
-import 'package:terrastep/domain/models/cell_visit.dart';
-import 'package:terrastep/domain/session_accumulator.dart';
+import 'package:terrastep_core/core/game_config.dart';
+import 'package:terrastep_core/data/local/outbox.dart';
+import 'package:terrastep_core/data/remote/claim_api.dart';
+import 'package:terrastep_core/data/sync_worker.dart';
+import 'package:terrastep_core/domain/models/cell_visit.dart';
+import 'package:terrastep_core/domain/session_accumulator.dart';
 
 import 'session_accumulator_test.dart' show FakeIndexer, straightWalk;
 

@@ -1,115 +1,110 @@
-# Terrastep — Client
+# Terrastep — Android App
 
-Flutter app. **`lib/core` and `lib/domain` are pure Dart** with no Flutter or
-plugin dependencies, so the game logic runs under `dart test` in CI with no
-emulator, no device and no Flutter SDK.
+Flutter app. **The game logic is not here** — it lives in
+[`../packages/terrastep_core`](../packages/terrastep_core), which is pure Dart
+with no Flutter dependency so it can be tested in CI without an emulator.
 
-That split is deliberate: the accumulator is the most bug-prone part of the
-client, and it is where a GPS-drift exploit was already caught (`ISSUES_LOG #17`).
-
----
-
-## Run the tests (no Flutter needed)
-
-```bash
-cd app
-dart pub get
-dart test        # 27 tests
-dart analyze     # must be clean
-```
+This package is the shell: sensors, map, UI.
 
 ---
 
-## What exists
+## Getting the APK on your phone
+
+**You do not need Flutter installed.** Every push builds an APK on GitHub's
+runners.
+
+1. Open the repo → **Actions** tab (works in the GitHub mobile app)
+2. Newest **Build Android APK** run
+3. Scroll to **Artifacts** → tap **terrastep-debug-apk** → downloads a `.zip`
+4. Unzip, tap the `.apk`, allow *install from unknown sources*
+
+You can also trigger a build by hand: Actions → Build Android APK → **Run
+workflow**.
+
+> Debug build, so it is unsigned and larger than a release build. Fine for
+> testing; not for the Play Store.
+
+---
+
+## What this first build does
+
+Phase 1 is **offline by design** — no account, no server, no Supabase. The point
+is to answer the two questions that only real hardware can:
+
+1. **Does a hex fill when you walk your block?**
+2. **What does it cost in battery?**
+
+Features:
+- OpenStreetMap tiles + your live position
+- Real H3 res-9 hexagons drawn around you (2 rings)
+- Walk to claim: 120 steps **and** 80 m **and** 90 s **and** 5 GPS fixes
+- Claimed hexes persist across app restarts
+- **Debug overlay** — the most important part. Live steps, distance, dwell,
+  GPS accuracy, motion state, and a count of every rejected fix by reason.
+
+### What to report back
+
+Screenshot the debug overlay during a walk, and note:
+
+| Question | Why it matters |
+|---|---|
+| Did a hex fill after ~120 steps? | Confirms the core loop on real GPS |
+| `m/step` value while walking | Server rejects outside 0.30–1.60 (rule R6) |
+| `gps acc` typical value | If routinely >35 m, the accuracy gate is too strict |
+| Rejected-fix counts | Non-zero `poor acc` or `teleport` means filter tuning |
+| `pedometer` says ok or NO SENSOR | Some devices lack a step counter |
+| **Battery % over 30 min, screen off** | **Threshold 0.3 go/no-go. Target <4%/hr** |
+
+---
+
+## Structure
 
 ```
 lib/
-├── core/
-│   └── game_config.dart          Balance constants + effort/decay maths.
-│                                 Mirrors the game_config table.
-└── domain/
-    ├── models/
-    │   ├── geo.dart              GeoFix + haversine (mirrors haversine_m())
-    │   └── cell_visit.dart       Per-cell accumulator record + RPC payload
-    └── session_accumulator.dart  ★ The heart. GPS + steps -> claimable visits.
-
-test/
-├── session_accumulator_test.dart  The 6 tests threshold 1.6 mandates,
-│                                  plus quality-gate and golden-path tests
-└── game_config_test.dart          Parity with the verified SQL suite
-
-tool/
-├── tune.dart      Measures anti-drift filter parameters
-└── verify.dart    Prints real-world scenario outcomes
+├── main.dart                     permission flow -> MapScreen
+├── services/
+│   ├── h3_indexer.dart           real H3 (implements core's CellIndexer)
+│   ├── location_service.dart     adaptive GPS sampling
+│   ├── step_service.dart         pedometer deltas
+│   └── tracking_coordinator.dart wires sensors -> accumulator -> UI
+└── ui/
+    ├── map/map_screen.dart       map, hex layer, position
+    └── widgets/
+        ├── debug_overlay.dart    live sensor readout
+        └── progress_card.dart    claim progress
 ```
 
-### Verified behaviour
+### `android/` is not committed
 
-`dart run tool/verify.dart`:
-
-| Scenario | Credited distance | Claimable |
-|---|---|---|
-| Genuine 10-min walk (810 m actual) | 789 m (97%) | 4 cells ✅ |
-| Standing still, 28 m GPS accuracy | 0.0 m | 0 ✅ |
-| Shaking the phone, 3025 fake steps | 0.0 m | 0 ✅ |
+`flutter create --platforms=android` regenerates it during the build, and
+`scripts/patch_android_manifest.sh` injects the permissions afterwards. The
+generated folder is large, mostly boilerplate, and churns noisily across Flutter
+versions — so it is rebuilt rather than stored. **Permission changes go in the
+patch script, not in a manifest file.**
 
 ---
 
-## Two invariants — don't break these
-
-**1. `lib/core` and `lib/domain` must stay Flutter-free.** No `package:flutter`
-imports, no plugins. If they creep in, `dart test` stops working and the logic
-becomes untestable without a device. Plugin-dependent code belongs in
-`lib/services` and `lib/ui`.
-
-**2. Client constants must match the SQL.** `game_config.dart` mirrors the
-`game_config` table, and `computeEffort` / `currentInfluence` mirror
-`compute_effort()` / `current_influence()`. `test/game_config_test.dart` asserts
-the exact values from the SQL suite (529.50, the 395 takeover bar, the 7-day
-half-life). **Changing a constant means changing both, in the same commit** —
-otherwise players see claims silently rejected by the server.
-
----
-
-## Finishing the scaffold (threshold 1.1, needs Flutter)
-
-The pure-Dart core is done and tested. To turn it into a running app:
+## Building locally (optional)
 
 ```bash
-# 1. Generate the platform shells around the existing lib/
-flutter create --org io.terrastep --project-name terrastep \
-       --platforms android,ios .
-
-# 2. Uncomment the Flutter dependency block in pubspec.yaml
+cd app
+flutter create --platforms=android --org io.terrastep --project-name terrastep .
+bash ../scripts/patch_android_manifest.sh
 flutter pub get
+flutter build apk --debug
+# -> build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-Then work through `06_MILESTONE_CHECKLIST.md` in order. The pieces to write:
+---
 
-| File | Threshold | Notes |
-|---|---|---|
-| `lib/services/h3_indexer.dart` | 1.3 | Implement `CellIndexer` with `h3_flutter`. The interface already exists — swap the fake for the real binding. |
-| `lib/ui/map/map_screen.dart` | 1.1, 1.4 | MapLibre + the GeoJSON hex layer from `03_CLIENT_ARCHITECTURE.md §6` |
-| `lib/services/location_service.dart` | 1.2, 1.8 | Adaptive sampling — see `§4.1`. **The battery boss fight.** |
-| `lib/services/step_service.dart` | 1.5 | HealthKit / Health Connect via `health` |
-| `lib/data/local/db.dart` | 1.7, 2.6 | Drift outbox |
-| `lib/data/remote/claim_api.dart` | 2.5 | `rpc('claim_cells')` — payload contract already tested |
+## The one rule
 
-**`CellIndexer` is the seam that matters.** `SessionAccumulator` depends on the
-interface, not on H3, which is why the logic is testable today. Keep it that way:
-the real implementation is roughly
+**Never import `package:flutter` into `packages/terrastep_core`.** That package
+holds the claim, contest and decay logic, and it stays testable under
+`dart test` — no emulator, no device — precisely because it has no Flutter
+dependency. That is what let the GPS-drift exploit (`ISSUES_LOG #17`) be caught
+in a unit test rather than in the field.
 
-```dart
-class H3Indexer implements CellIndexer {
-  final h3 = const H3Factory().load();
-  @override
-  String cellFor(double lat, double lng) =>
-      h3.geoToCell(GeoCoord(lat: lat, lon: lng), 9).toRadixString(16);
-  @override
-  String parentRes5(String cellId) =>
-      h3.cellToParent(BigInt.parse(cellId, radix: 16), 5).toRadixString(16);
-}
-```
-
-Verify against `h3-js` for a couple of known coordinates before trusting it
-(threshold 1.3's acceptance test).
+Plugin-dependent code belongs here in `app/lib/services`. The `CellIndexer`
+interface is the pattern: the accumulator depends on the abstraction, and
+`H3Indexer` supplies the native implementation.

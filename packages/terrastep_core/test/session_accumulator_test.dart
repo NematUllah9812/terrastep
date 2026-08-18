@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:test/test.dart';
-import 'package:terrastep/core/game_config.dart';
-import 'package:terrastep/domain/models/cell_visit.dart';
-import 'package:terrastep/domain/models/geo.dart';
-import 'package:terrastep/domain/session_accumulator.dart';
+import 'package:terrastep_core/core/game_config.dart';
+import 'package:terrastep_core/domain/models/cell_visit.dart';
+import 'package:terrastep_core/domain/models/geo.dart';
+import 'package:terrastep_core/domain/session_accumulator.dart';
 
 /// Deterministic stand-in for H3.
 ///

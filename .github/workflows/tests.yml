@@ -12,12 +12,12 @@ on:
 
 jobs:
   client:
-    name: Client core (pure Dart)
+    name: Core logic (pure Dart)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: app
+        working-directory: packages/terrastep_core
 
     steps:
       - uses: actions/checkout@v4

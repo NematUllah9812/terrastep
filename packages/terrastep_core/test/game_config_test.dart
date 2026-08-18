@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:terrastep/core/game_config.dart';
+import 'package:terrastep_core/core/game_config.dart';
 
 /// These assertions mirror the verified SQL suite in `tests/01_engine_tests.sql`.
 /// If the client and server ever disagree on these numbers, players see claims
