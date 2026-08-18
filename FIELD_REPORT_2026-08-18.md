@@ -277,6 +277,29 @@ not SQLite — good enough for Phase 1.
 | 3 | 0.1.0 | 0 (35 m gate on cellular) | no |
 | **4** | **0.1.2+3** | claimed, then 39.4 into next | **yes** |
 | **5** | **0.1.2+3** | 3 hexes, screen mostly off | **yes + 2 more** |
+| **6** | **0.1.3+4** | prayer / pocket 23 min | **tracking died** |
+
+---
+
+## Walk 6 — prayer, pocket, screen off (~18:51–19:14)
+
+**Build:** fresh v0.1.3+4 install (territory 0 — uninstall wipes local claims).  
+**What:** phone in pocket, went to pray, came back. ~23 minutes.
+
+| Time | Elapsed | Steps | Dist | Dwell | Fixes | Acc | raw/acc | Pedo | Terr | Batt |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 18:51 | 00:13 | 0 | 0.0 | 11 | 7/5 | 41.8 | 8/7 | 0 | 0 | 37% |
+| 19:14 | **22:59** | **0** | **0.0** | **28** | 11/5 | 21.6 | **12/11** | **0** | 0 | 37% |
+
+If 1 Hz tracking had stayed alive: ~1,380 raw fixes, hundreds of steps, dwell near 23 min.
+
+What we got: **12 GPS samples in 23 minutes**, **0 pedometer steps**, dwell 28 s (gaps > 120 s credit nothing), battery unchanged at 37 %.
+
+### Verdict
+
+**Threshold 1.8 / 0.3 cannot pass on this APK.** Android froze the app in the pocket. Walk 5 sometimes survived because the process was still warm and the screen was peeked. A real leave-the-house / pray / come-back cycle kills sensors.
+
+This is the evidence for O11, not a failed walk. Next build is a **foreground service** (persistent notification, `FOREGROUND_SERVICE_LOCATION`) so GPS + pedometer keep running with the screen off. Then repeat this exact test.
 
 ---
 

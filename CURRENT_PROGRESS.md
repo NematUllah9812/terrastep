@@ -2,16 +2,15 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **v0.1.3+4 APK uploaded.** Reclaim + step-leak fixes (#30).
+**Latest:** Walk 6 — **23 min pocket/prayer. Tracking died.** 12 GPS fixes, 0 steps. 1.8 needs a foreground service.
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
-**Next according to the plan:** **1.8 / 0.3** — real foreground service, then a controlled pocket walk.
+**Next according to the plan:** **build O11 (foreground service)**, then repeat the pocket test.
 
 | | |
 |---|---|
-| **Walk 5** | Left home. Cells `aa0fffff`, `aa77ffff`. Territory **3**. m/step 0.63–0.79. Acc 3–8 m. |
-| **Bugs** | Same hex claimable 3×. Steps from last hex leaked into the next. **#30, fixed.** |
-| **Standing still** | Counts as **dwell** (the 90 s clock), not metres. That is correct. |
-| **Next build** | Install v0.1.3, then we add the foreground service (O11). |
+| **Walk 6** | 22:59 elapsed, raw gps **12**, pedometer **0**, dwell 28 s, battery 37→37 %. |
+| **Meaning** | Screen-off without FGS = app frozen. Walk 5 was luck. |
+| **1.7** | Still ✅ (claim + persist). Uninstall of v0.1.3 reset local hexes — expected. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -186,7 +185,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 |---|---|---|---|
 | 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | **On device** (flutter_map + OSM, not MapLibre — #21). |
 | 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | **On device.** Cell `89209a0aa73ffff`. Still unverified vs h3-js (O9). |
-| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **GO/NO-GO.** This APK is foreground-only. Pocket test waits on O11. |
+| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **Failed without FGS.** Walk 6: 12 fixes / 0 steps in 23 min pocket. |
 
 ### PHASE 1 — Local Prototype *(2 / 8 done)*
 
@@ -352,7 +351,7 @@ the app in their pocket). Do not start Phase 2 multiplayer until then.
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-18 | **Walk 5.** 3 hexes, pocket/screen-off. Reclaim + step-leak (#30). v0.1.3. | #30 |
+| 2026-08-18 | **Walk 6.** 23 min pocket/prayer. 12 GPS, 0 steps. 1.8 cannot pass without FGS. | O11 |
 | 2026-08-18 | **1.7 complete.** Claim + persist. Force-quit multiple times, hex stayed blue. | — |
 | 2026-08-18 | **Walk 4 / first claim.** v0.1.2+3, brother. Territory 1. 512/512 fixes. | — |
 | 2026-08-18 | **Walk 3 (cellular).** 578 steps, dist 0. Still the v0.1.0 / 35 m APK. | — |

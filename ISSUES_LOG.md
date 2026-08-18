@@ -936,7 +936,7 @@ Known problems not yet solved. Carry these forward.
 | O8 | APK still not compiled | 1.1 | **Resolved.** v0.1.1+2 in `releases/`. First walk (#28) showed GPS was silent. |
 | O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
 | O10 | Anti-drift filter untuned against real GPS | 4.2 | **Partial.** First walk never left a Wi‑Fi lock, so the anchor never fired. Re-tune after v0.1.2 gets a satellite lock. |
-| O11 | Foreground service not implemented | 1.8 | Tracking currently stops when the app is backgrounded. Needed for the real battery test. |
+| O11 | Foreground service not implemented | 1.8 | **Walk 6 confirmed.** 23 min pocket: 12 GPS, 0 steps. Next build. |
 
 ---
 
