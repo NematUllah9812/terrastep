@@ -36,7 +36,10 @@ class LocationService {
   int rawFixes = 0;
   String? lastError;
   bool usingLocationManager = false;
+  double? _lastAccuracy;
   bool get isTracking => _sub != null;
+  bool get wifiOnlyLock =>
+      _lastAccuracy != null && _lastAccuracy! > 50;
 
   static Future<bool> isGpsOn() => Geolocator.isLocationServiceEnabled();
 
@@ -77,12 +80,17 @@ class LocationService {
     await _seed();
     _listenWith(forceLocationManager: false);
 
-    // If Fused Location produces nothing for 8 s, retry via LocationManager.
+    // Two reasons to drop Fused Location and talk to the GPS chip:
+    // 1. no fix at all (v0.1.0 / #28)
+    // 2. we only have a Wi‑Fi lock — accuracy stays >50 m (field report #29)
     _fallbackTimer?.cancel();
-    _fallbackTimer = Timer(const Duration(seconds: 8), () {
-      if (rawFixes == 0) {
+    _fallbackTimer = Timer(const Duration(seconds: 12), () {
+      if (usingLocationManager) return;
+      if (rawFixes == 0 || _lastAccuracy == null || _lastAccuracy! > 50) {
         usingLocationManager = true;
-        lastError = 'no fused fix in 8s — trying LocationManager';
+        lastError = rawFixes == 0
+            ? 'no fused fix in 12s — trying GPS chip'
+            : 'wifi/network lock (${_lastAccuracy!.toStringAsFixed(0)} m) — trying GPS chip';
         _listenWith(forceLocationManager: true);
         _seed();
       }
@@ -131,20 +139,21 @@ class LocationService {
   }) {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return AndroidSettings(
-        accuracy: LocationAccuracy.best,
+        accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: filter,
         intervalDuration: const Duration(seconds: 1),
         forceLocationManager: forceLocationManager,
       );
     }
     return const LocationSettings(
-      accuracy: LocationAccuracy.best,
+      accuracy: LocationAccuracy.bestForNavigation,
       distanceFilter: 0,
     );
   }
 
   void _onPosition(Position p) {
     rawFixes++;
+    _lastAccuracy = p.accuracy;
     lastError = null;
     final ts = p.timestamp;
     // Some Android builds report the epoch or a future clock; clamp to now

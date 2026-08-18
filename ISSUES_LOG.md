@@ -46,6 +46,7 @@ bottom first, then *Open Items*. The numbered entries are the paper trail.
 | [26](#26--local-apk-build-on-a-2-gb-box) | Local APK build on a 2 GB box | 🟡 |
 | [27](#27--the-apk-was-built-but-not-in-the-repo) | APK was built but gitignored | 🟡 |
 | [28](#28--first-device-walk-got-no-gps-and-no-permission-dialog) | First walk: no GPS, no permission dialog | 🔴 |
+| [29](#29--500-m-walk-steps-ok-distance-0-map-frozen-off-wifi) | 500 m walk: steps ok, distance 0, map frozen off Wi‑Fi | 🔴 |
 
 ---
 
@@ -842,6 +843,46 @@ lock — you cannot filter a stream that has not started.
 
 ---
 
+### #29 🔴 500 m walk: steps ok, distance 0, map frozen off Wi‑Fi
+**Symptom** Real walk, Abbottabad, ~500 m, 8–12 min, screen on
+(`FIELD_REPORT_2026-08-18.md`). Pedometer 810. Distance **0.0 m**.
+Same cell the whole time. Map 100–200 m off until the tester got
+**back on home Wi‑Fi**, at which point the dot snapped to the real
+position. Best reported accuracy was 42–47 m; once off Wi‑Fi it
+inflated to 200–300 m and 14 fixes were rejected as `poor acc`.
+Only 2 fixes accepted, 23 s apart. Battery ~2 % / 12 min screen-on.
+
+**Cause** Two stacked, now-measured facts:
+
+1. **The 35 m accuracy gate is too tight for this hardware.** A
+   *good* fused lock here is 42–47 m. `maxAccuracyM = 35` threw
+   those away. The two accepts were close in space and time, so
+   the displacement-anchor (`2 × accuracy ≈ 94 m`) never fired
+   and distance stayed 0. Steps kept landing on the same visit
+   (`currentCell` from the last accept).
+
+2. **Off Wi‑Fi the OS was not giving GNSS.** It re-emitted the
+   last Wi‑Fi lat/lng with a decaying accuracy. That is why the
+   first two screenshots (in Wi‑Fi range) looked right, the walk
+   looked frozen, and coming home snapped the dot. v0.1.1's
+   LocationManager fallback only ran when `rawFixes == 0`, so a
+   *bad* Wi‑Fi lock prevented us from ever asking the GPS chip.
+
+**Fix** (APK **v0.1.2+3**)
+- Client claim gate **35 m → 80 m** (app `GameConfig` only; server
+  SQL stays 35 until we decide).
+- `LocationAccuracy.bestForNavigation`.
+- After 12 s, if accuracy is still >50 m, switch to
+  `forceLocationManager: true` even if we already have raw fixes.
+- Yellow banner on the overlay: “WEAK LOCK — Wi‑Fi/network, not GPS.”
+
+**Prevention** The 35 m number was a guess from the plan. One
+outdoor walk falsified it. Tune gates from a real dump, not from
+the spec. And a “we got *a* fix” fallback is not enough — a stale
+network lock is worse than silence.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
@@ -857,7 +898,7 @@ Known problems not yet solved. Carry these forward.
 | O7 | Background battery drain unmeasured | 0.3 | **Highest project risk — awaiting device test** |
 | O8 | APK still not compiled | 1.1 | **Resolved.** v0.1.1+2 in `releases/`. First walk (#28) showed GPS was silent. |
 | O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
-| O10 | Anti-drift filter untuned against real GPS | 4.2 | Tuned on synthetic jitter. Real GPS may need a different `_anchorFactor`. |
+| O10 | Anti-drift filter untuned against real GPS | 4.2 | **Partial.** First walk never left a Wi‑Fi lock, so the anchor never fired. Re-tune after v0.1.2 gets a satellite lock. |
 | O11 | Foreground service not implemented | 1.8 | Tracking currently stops when the app is backgrounded. Needed for the real battery test. |
 
 ---

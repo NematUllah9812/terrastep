@@ -2,16 +2,17 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** APK **v0.1.1+2** — GPS / permission fix after the first walk (#28)
-**Next deliverable:** uninstall the old APK, install this one, walk again
+**Latest:** APK **v0.1.2+3** — 80 m gate + GPS-chip fallback after the 500 m walk (#29)
+**Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
+**Next deliverable:** uninstall, install v0.1.2, enable **High accuracy** location, walk again
 
 | | |
 |---|---|
-| **Build** | ✅ v0.1.1+2. 45 MB arm64 debug. Analyzer clean. |
+| **Build** | ✅ v0.1.2+3 |
 | **Where to download** | [`releases/terrastep-debug.apk`](releases/terrastep-debug.apk) |
-| **Toolchain** | Flutter **3.27.4** / Dart 3.6.2 / JDK 17 / compileSdk 35 |
-| **First walk** | ❌ GPS silent, no permission dialog — #28, fixed in this build |
-| **Device test** | ⬜ Retest with v0.1.1. You do **not** need a long walk to see numbers move. |
+| **First walk (~500 m)** | Steps 810 ✅. Distance 0 ❌. Map froze off Wi‑Fi, snapped back on Wi‑Fi. Acc 42–300 m. 14× `poor acc`. |
+| **Why distance was 0** | 35 m gate rejected the 42–47 m locks; remaining fixes were stale Wi‑Fi coords with 200–300 m acc. |
+| **Battery** | ~2 % / 12 min screen-on (~10 %/hr). Expected with the screen lit. Pocket test still needs O11. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -112,6 +113,7 @@ Everything needed to continue is committed. No local state matters.
 | **`ISSUES_LOG.md`** | **Every blocker, how it was fixed, open items** |
 | `SECURITY.md` | Credential handling rules |
 | **`releases/terrastep-debug.apk`** | **Installable testing APK** |
+| **`FIELD_REPORT_2026-08-18.md`** | **First real walk — raw dump + diagnosis** |
 | `packages/terrastep_core/` | Pure-Dart game logic. 43 tests, no Flutter dep. |
 | `app/` | Flutter Android app (sensors, map, UI) |
 | `scripts/` | `patch_android_manifest.sh` — permissions after `flutter create` |
@@ -145,9 +147,10 @@ The APK needs nothing — download `releases/terrastep-debug.apk`.
 
 ## 1. Honest Summary
 
-**The referee is finished and tested. There is now a holdable game — a
-debug APK that claims hexes offline. It has not been walked on a real
-phone yet.**
+**The referee is finished and tested. There is a holdable game. It has
+been walked once (~500 m). Steps work. Distance does not, because the
+phone locked to Wi‑Fi and the 35 m gate threw the rest away. See
+`FIELD_REPORT_2026-08-18.md`.**
 
 The backend is real code, not a sketch: 48 behavioural assertions pass
 (claiming, contesting, hysteresis, decay, idempotency, teleport rejection,
@@ -170,7 +173,7 @@ on it.
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
 | Supabase deployment | ❌ Local Postgres only |
 | Flutter app | 🟡 Compiles; APK in `releases/` |
-| Real GPS / steps / battery | 🟡 Instrumented, unmeasured |
+| Real GPS / steps / battery | 🟡 One walk: pedometer ✅, distance 0, acc 42–300 m |
 | Store submission | ❌ Not started |
 
 ---
@@ -331,10 +334,9 @@ latency target, and **anything on a real phone**.
 
 **Do these in this order. Nothing else first.**
 
-1. **Install [`releases/terrastep-debug.apk`](releases/terrastep-debug.apk)
-   and walk a block, screen on.** Screenshot the debug overlay. That walk
-   answers 0.1, 0.2, 1.1–1.5 and 1.7, and tells us whether the accuracy
-   gate / stride fallback / pedometer path are sane.
+1. **Install v0.1.2, set Location → High accuracy (GPS on), walk again
+   off Wi‑Fi.** We need `gps acc` < 80 m *while walking* and distance
+   climbing. Copy the overlay dump. Details in the field report.
 2. **Foreground service (O11)** so the real 0.3 / 1.8 pocket test can run.
 3. **Deploy to a real Supabase project** (threshold 2.1, properly). ~1 hour.
 4. **Clear the four test-debt items.** ~4 hours.
@@ -354,6 +356,7 @@ Then Phase 1 in order through 1.8, with 1.8 given a full week.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-18 | **v0.1.2+3 + field report.** 500 m walk stored. Client acc gate 35→80 m. GPS-chip fallback when the lock is Wi‑Fi-only. | #29 |
 | 2026-08-18 | **v0.1.1+2 — first-walk fix.** Permission dialog + GPS-on button; 1 Hz stream with no 25 m filter; last-known + current-position seed; LocationManager fallback; overlay shows `raw gps` / errors. | #28 |
 | 2026-08-18 | **APK committed to the repo.** `releases/terrastep-debug.apk` (45 MB). Docs reorganized so install / status / issues agree. | #27 |
 | 2026-08-18 | **First green APK.** Flutter 3.27.4, analyzer clean, `libh3.so` packed. Built on a 2 GB box with 4 GB swap and Temurin 17 (Debian 13 has no JDK 17). | #23, #24, #25, #26 |

@@ -138,5 +138,6 @@ select * from pg_available_extensions where name like 'h3%';
 
 ≈ 5 months part-time at 12 h/week.
 
-**Next action:** install `releases/terrastep-debug.apk` and walk a block.
-Then `CURRENT_PROGRESS.md` §6.
+**Next action:** install `releases/terrastep-debug.apk` **v0.1.2**, set
+Location to High accuracy (GPS on), walk again. First-walk write-up:
+[`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md).

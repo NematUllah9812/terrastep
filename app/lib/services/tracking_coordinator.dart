@@ -88,7 +88,9 @@ class TrackingCoordinator extends ChangeNotifier {
     required this.indexer,
     required this.location,
     required this.steps,
-    this.cfg = const GameConfig(),
+    // 80 m: Abbottabad walk 2026-08-18 showed a *good* lock at 42–47 m
+    // and the 35 m server default rejected almost every fix (#29).
+    this.cfg = const GameConfig(maxAccuracyM: 80),
   }) {
     accumulator = SessionAccumulator(
       cfg: cfg,

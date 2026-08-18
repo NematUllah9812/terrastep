@@ -92,7 +92,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
     final v = tracker.currentVisit;
     final cfg = tracker.cfg;
     final buf = StringBuffer()
-      ..writeln('Terrastep debug  v0.1.0+1')
+      ..writeln('Terrastep debug  v0.1.2+3')
       ..writeln('elapsed $_elapsed   battery $_batteryLabel')
       ..writeln('cell ${v?.cellId ?? '—'}')
       ..writeln('steps ${v?.steps ?? 0} / ${cfg.claimMinSteps}')
@@ -189,6 +189,19 @@ class _DebugOverlayState extends State<DebugOverlay> {
             _row('fixes', '${v?.fixCount ?? 0} / ${cfg.claimMinFixes}'),
             _row('m/step', (v?.metresPerStep ?? 0).toStringAsFixed(2),
                 hint: 'server wants 0.30-1.60'),
+
+            if ((tracker.lastAccuracy ?? 0) > 50) ...[
+              const SizedBox(height: 6),
+              const Text(
+                'WEAK LOCK — this looks like Wi‑Fi/network, not GPS. '
+                'Settings → Location → High accuracy (GPS on). '
+                'Distance stays 0 until acc drops.',
+                style: TextStyle(
+                    fontSize: 10.5,
+                    color: Color(0xFFFBBF24),
+                    height: 1.35),
+              ),
+            ],
 
             const Divider(height: 14, color: Color(0xFF243352)),
 
