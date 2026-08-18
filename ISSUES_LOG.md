@@ -641,19 +641,50 @@ Known problems not yet solved. Carry these forward.
 
 ## Recurring Patterns
 
-Four lessons that keep resurfacing:
+Lessons that keep resurfacing. Read these first if you're resuming.
 
+### On the environment
 1. **The sandbox is ephemeral; the repo is not.** Packages, processes, git
-   identity and remotes all reset (#3, #4). Anything that must survive goes in a
-   committed file. On resuming: install Postgres, set git identity, re-add the
-   remote.
+   identity and remotes all reset (#3, #4, and #10 recurred twice). Anything
+   that must survive goes in a committed file. On resuming: install Postgres,
+   install Dart, set git identity, re-add the remote.
 
-2. **When a test fails, suspect the test first.** Both engine "failures" (#8, #9)
-   were wrong expectations. The engine was correct each time.
-
+### On testing
+2. **When a test fails, suspect the test first.** Three "failures" (#8, #9,
+   #18) were wrong expectations or bad fixtures. The implementation was right
+   each time.
 3. **Assert the specific reason, not just failure.** #8 only surfaced because
    tests assert exact rejection strings. `assert rejected` would have hidden a
-   masked rule.
+   rule being masked by an earlier one.
+4. **Every anti-cheat test needs a paired golden-path test.** A filter that
+   rejects everything scores 100% against attackers and ships a broken product
+   (#18). The SQL suite's `A1 valid walk accepted` is the same idea.
+5. **Test the safety net itself, in both directions.** The secret scanner (#12)
+   would have failed every CI run by matching its own documentation. Tools that
+   protect you need their own tests.
+6. **A "run this to get started" command must be idempotent.** Run it twice,
+   and once after deleting its state (#16). That bug only appeared because the
+   documented resume steps were actually executed rather than assumed.
 
-4. **Test the safety net itself.** The secret scanner (#12) would have broken
-   every CI run. Tools that protect you need their own tests, in both directions.
+### On implementation
+7. **When a filter can't separate two signals, change the axis.** Hop magnitude
+   could not distinguish GPS jitter from walking at any threshold; net
+   displacement separated them perfectly (#17). Tuning a parameter harder is
+   not always the answer.
+8. **Classify a failure before reacting to it.** "Is this the batch's fault or
+   the account's?" Batch-specific → back off that batch. Account-wide → hold
+   everything (#19). Getting this wrong could have shadow-banned real users.
+9. **Never guess a version number.** #22 cost a failed build purely because
+   plugin versions were written from memory. One curl to the pub.dev API
+   confirms both existence and SDK requirements.
+10. **Prefer the dependency that keeps the feedback loop working.** A better
+    library you cannot build or test in the current environment is worth less
+    than an adequate one that ships today (#21).
+
+### On structure
+11. **Enforce boundaries structurally, not by discipline.** A comment saying
+    "don't add Flutter here" is weaker than a separate package where adding it
+    breaks the build visibly (#20).
+12. **Design for unattended failure.** The first APK build failed with an error
+    nobody could read from a phone. Diagnostics that surface on the summary
+    page cost ten minutes and save every future round-trip (#22).

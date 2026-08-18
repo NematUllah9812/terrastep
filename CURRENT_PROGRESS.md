@@ -2,8 +2,12 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest commit:** Android app + APK build workflow
-**Next deliverable:** you install the APK and report the battery number (§0b)
+**Latest commit:** `7d290dd` — pinned plugin versions after the first APK build failed
+**Next deliverable:** a green APK build, then your device test (§0b)
+
+**Build status:** attempt #1 failed on dependency resolution (ISSUES_LOG #22);
+versions now verified against pub.dev and the toolchain pinned. Attempt #2
+pushed — **unconfirmed at time of writing.**
 
 > **Resuming on a new machine?** Read §0 below, then `ISSUES_LOG.md`
 > "Recurring Patterns". The sandbox/toolchain is ephemeral — expect to
@@ -308,10 +312,11 @@ re-checked on real Supabase:
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-18 | **APK build #1 failed** on dependency resolution. Plugin versions were written from memory with open carets; `^8.10.4` resolved to a release needing Flutter 3.38. Pinned every version against the pub.dev API, pinned the toolchain to 3.24.5, dropped 2 unused plugins, made `terrastep_core` zero-dep. Added failure diagnostics to the run summary. | #22 |
 | 2026-08-18 | **Android app + APK CI.** Split pure logic into `packages/terrastep_core` (43 tests, stays Flutter-free) and added the `app/` Flutter package: H3Indexer, adaptive LocationService, StepService, TrackingCoordinator, map + debug overlay. GitHub Actions builds the APK on their runners. | — |
 | 2026-08-18 | **Threshold 2.6 logic complete.** Outbox + SyncWorker with batching, exponential backoff, idempotent retries. 43 client tests. Fixed a rate-limit bug that could shadow-ban a heavy walker. | #19 |
 | 2026-08-18 | **Threshold 1.6 complete.** Implemented `SessionAccumulator` + `GameConfig` as pure Dart with 27 passing tests. Fixed a stationary-jitter exploit that credited 1.1 km of phantom distance. Added a `client` CI job. | #17, #18 |
-| 2026-08-18 | Added `ISSUES_LOG.md` (18 entries, 7 open items) and a resume-anywhere section. | — |
+| 2026-08-18 | Added `ISSUES_LOG.md` (now 22 entries, 11 open items) and a resume-anywhere section. | — |
 | 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost exec bit, and Postgres discovery across Debian/Homebrew/Postgres.app. Verified clean-slate run on a bare machine. | #10, #11, #12 |
 | 2026-08-17 | Switched from a classic PAT to a fine-grained, one-repo, 7-day token. | #13, #14, #15 |
 | 2026-08-17 | Initial plan, schema, claim engine, prototype, 48-test suite. | #1–#9 |
