@@ -1,0 +1,53 @@
+name: Engine tests
+
+# Runs the 48-assertion acceptance suite against a real Postgres.
+# Guards the game rules (claim / contest / hysteresis / decay / anti-cheat)
+# so tuning game_config constants can't silently break them.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.sql'
+      - 'tests/**'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - '*.sql'
+      - 'tests/**'
+  workflow_dispatch:
+
+jobs:
+  engine:
+    name: Claim engine acceptance suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client + server
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql
+
+      - name: Run acceptance suite
+        run: |
+          chmod +x tests/run_tests.sh
+          ./tests/run_tests.sh
+
+      - name: Secret scan (belt and braces)
+        if: always()
+        run: |
+          # Fail loudly if a credential ever gets committed.
+          # Patterns: GitHub PATs, Supabase secret keys, JWTs.
+          #
+          # Prefixes are anchored to a long run of real key characters so that
+          # prose *mentioning* a prefix (SECURITY.md) doesn't trip the scan.
+          # Docs use a Unicode ellipsis after prefixes, which can't match.
+          if grep -rInE '(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|sb_secret_[A-Za-z0-9_-]{28,}|eyJhbGciOi[A-Za-z0-9_-]{30,})' \
+               . --exclude-dir=.git --exclude-dir=.github --exclude=SECURITY.md 2>/dev/null; then
+            echo "::error::Possible credential committed to the repository"
+            exit 1
+          fi
+          echo "No credentials detected."

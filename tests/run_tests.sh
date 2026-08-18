@@ -11,8 +11,25 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PGBIN=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | tail -1 || echo "")
-[ -n "$PGBIN" ] && export PATH="$PGBIN:$PATH"
+# Locate Postgres binaries: honour an explicit PGBIN, else look in the usual
+# places (Debian/Ubuntu, Homebrew, Postgres.app), else fall back to $PATH.
+if [ -z "${PGBIN:-}" ]; then
+  for d in /usr/lib/postgresql/*/bin \
+           /opt/homebrew/opt/postgresql*/bin \
+           /usr/local/opt/postgresql*/bin \
+           /Applications/Postgres.app/Contents/Versions/*/bin; do
+    [ -x "$d/initdb" ] && PGBIN="$d"
+  done
+fi
+[ -n "${PGBIN:-}" ] && export PATH="$PGBIN:$PATH"
+
+if ! command -v initdb >/dev/null 2>&1; then
+  echo "ERROR: Postgres client tools not found (initdb)." >&2
+  echo "  Debian/Ubuntu : sudo apt-get install -y postgresql" >&2
+  echo "  macOS         : brew install postgresql@17" >&2
+  echo "  Or set PGBIN=/path/to/postgres/bin" >&2
+  exit 127
+fi
 
 PGDATA=${PGDATA:-/tmp/terrastep_pg}
 PORT=${PGPORT:-5433}

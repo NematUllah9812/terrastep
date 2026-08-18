@@ -1,8 +1,8 @@
 # Terrastep — Current Progress
 
-**Last updated:** 2026-08-17
+**Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest commit:** `f9dc96c` — Terrastep: complete technical build plan
+**Latest commit:** CI workflow + SECURITY.md
 
 ---
 
@@ -199,6 +199,19 @@ re-checked on real Supabase:
 
 **Then:** Phase 1 in order, 1.1 → 1.8, with 1.8 given a full week.
 
-**Optional infrastructure:** a GitHub Actions workflow running
-`tests/run_tests.sh` on push, so the 48 assertions stay green as game constants
-get tuned. ~20 lines.
+**Infrastructure now in place:**
+- ✅ **CI** — `.github/workflows/tests.yml` runs the 48 assertions on every push
+  touching `*.sql` or `tests/`, plus a secret scan that fails the build on
+  committed GitHub PATs, `sb_secret_…` keys or raw JWTs.
+- ✅ **SECURITY.md** — credential handling rules, the Supabase
+  publishable/secret split, and leak-response steps. Written before Phase 2
+  introduces real keys.
+
+---
+
+## 7. Changelog
+
+| Date | Change |
+|---|---|
+| 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost executable bit, and Postgres discovery now handles Debian/Homebrew/Postgres.app with a clear error when missing. Verified clean-slate run on a bare machine. |
+| 2026-08-17 | Initial plan, schema, claim engine, prototype, 48-test suite. |
