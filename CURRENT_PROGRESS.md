@@ -2,16 +2,16 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** Walk 2 stored. GPS 24.5 m, distance **64.1 / 80**, no claim (16 m short).
+**Latest:** Walk 3 stored (cellular). Distance 0 again — still on **v0.1.0** (35 m gate).
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
-**Next deliverable:** one straight block until metres ≥ 80, then copy the dump
+**Next deliverable:** uninstall old APK → install **v0.1.2+3** → dump must say `v0.1.2+3` → walk
 
 | | |
 |---|---|
-| **Walk 1** | Steps 810, distance 0. Wi‑Fi lock. Acc 42–300 m. |
-| **Walk 2** | Steps 412 ✅, dwell 224 ✅, fixes 5 ✅, acc **24.5 m** ✅, distance **64.1 / 80** ❌. Territory 0. |
-| **Verdict** | Sensors work. Claim missed by 16 m. `m/step` 0.16 = net displacement, not a dead pedometer. |
-| **Battery** | ~1 % / 4.5 min screen-on (~13 %/hr). Expected with the screen lit. |
+| **Walk 1** | Wi‑Fi lock. Dist 0. Acc 42–300 m. |
+| **Walk 2** | GNSS 24.5 m. Dist **64.1 / 80**. Almost a claim. |
+| **Walk 3** | Cellular, pin ok. 578 steps, dist **0**. Acc 22–87 m. 15× poor acc + 1 too fast. **Old 35 m APK.** |
+| **Battery** | ~1 % / 7 min screen-on. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -146,9 +146,9 @@ The APK needs nothing — download `releases/terrastep-debug.apk`.
 
 ## 1. Honest Summary
 
-**The referee is finished. The board exists. Two walks on a real phone:**
-walk 1 was a Wi‑Fi lock (distance 0); walk 2 got a 24.5 m GNSS lock and
-**64.1 m of 80 m** toward a claim. Sensors work. No hex yet.
+**Three walks.** Walk 2 proved the loop (64 m of 80). Walk 3 was still the
+old 35 m APK on cellular — 15 rejects in the 36–87 m band that v0.1.2
+would have kept. Next is install, not another walk on v0.1.0.
 
 The backend is real code, not a sketch: 48 behavioural assertions pass
 (claiming, contesting, hysteresis, decay, idempotency, teleport rejection,
@@ -171,7 +171,7 @@ on it.
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
 | Supabase deployment | ❌ Local Postgres only |
 | Flutter app | 🟡 Compiles; APK in `releases/` |
-| Real GPS / steps / battery | 🟡 Walk 2: acc 24.5 m, steps 412, dist 64/80 |
+| Real GPS / steps / battery | 🟡 Walk 2: 64/80 m. Walk 3: still v0.1.0, dist 0 |
 | Store submission | ❌ Not started |
 
 ---
@@ -332,8 +332,9 @@ latency target, and **anything on a real phone**.
 
 **Do these in this order. Nothing else first.**
 
-1. **One straight block until `distance` ≥ 80 m.** Copy the overlay.
-   If a hex fills: force-quit, reopen, confirm it is still there (1.7).
+1. **Uninstall Terrastep. Install `releases/terrastep-debug.apk` (v0.1.2+3).**
+   Open it and copy the overlay — the first line must say `v0.1.2+3`.
+   Then one straight block until metres ≥ 80.
 2. **Foreground service (O11)** so the real 0.3 / 1.8 pocket test can run.
 3. **Deploy to a real Supabase project** (threshold 2.1, properly). ~1 hour.
 4. **Clear the four test-debt items.** ~4 hours.
@@ -353,7 +354,9 @@ Then Phase 1 in order through 1.8, with 1.8 given a full week.
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-18 | **v0.1.2+3 + field report.** 500 m walk stored. Client acc gate 35→80 m. GPS-chip fallback when the lock is Wi‑Fi-only. | #29 |
+| 2026-08-18 | **Walk 3 (cellular).** 578 steps, dist 0, acc 22–87 m, 15× poor acc + 1 too fast. Still the v0.1.0 / 35 m APK. | — |
+| 2026-08-18 | **Walk 2.** GNSS 24.5 m. 412 steps, 64.1/80 m. No claim — 16 m short. | — |
+| 2026-08-18 | **v0.1.2+3 + field report.** Client acc gate 35→80 m. GPS-chip fallback when the lock is Wi‑Fi-only. | #29 |
 | 2026-08-18 | **v0.1.1+2 — first-walk fix.** Permission dialog + GPS-on button; 1 Hz stream with no 25 m filter; last-known + current-position seed; LocationManager fallback; overlay shows `raw gps` / errors. | #28 |
 | 2026-08-18 | **APK committed to the repo.** `releases/terrastep-debug.apk` (45 MB). Docs reorganized so install / status / issues agree. | #27 |
 | 2026-08-18 | **First green APK.** Flutter 3.27.4, analyzer clean, `libh3.so` packed. Built on a 2 GB box with 4 GB swap and Temurin 17 (Debian 13 has no JDK 17). | #23, #24, #25, #26 |

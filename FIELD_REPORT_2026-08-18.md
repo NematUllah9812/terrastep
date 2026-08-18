@@ -164,3 +164,45 @@ This is a different walk from the first one:
 **Not yet:** 1.7 (claim + persist) — need `distance ≥ 80`.
 
 Next walk: one straight block from the house, screen on, until the metres counter crosses 80. Then copy again. If the hex fills, force-quit and reopen — that is 1.7.
+
+---
+
+## Walk 3 — cellular only (same day, ~15:05–15:12)
+
+**Network:** cellular only, no Wi‑Fi. Tester said the pin looked somewhat accurate.  
+**Build string:** still `v0.1.0+1` → **this is the old 35 m gate.** v0.1.2 (80 m gate) was never installed.  
+**Cell the whole time:** `89209a0aa73ffff`  
+**Battery:** 64 % → 63 % over ~7 min (screen on).
+
+| # | Time | Elapsed | Steps | Dist | Dwell | Fixes | Acc | Accepted | Poor | Motion |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 15:05 | 01:17 | 20 | 0.0 | 0 | 1/5 | **32.1 m** | 1 | 0 | stationary |
+| 2 | 15:06 | 02:02 | 64 | 0.0 | **109** | 2/5 | **25.0 m** | 2 | 0 | stationary |
+| 3 | 15:06 | 02:31 | 115 | 0.0 | 109 | 2/5 | 52.4 m | 2 | 1 | walking |
+| 4 | 15:08 | 03:35 | 222 | 0.0 | 109 | 2/5 | 41.0 m | 2 | 7 | running |
+| — | shot | 03:57 | 250 | 0.0 | 109 | 2/5 | 87.6 m | 2 | 9 | running |
+| — | shot | 04:54 | 350 | 0.0 | 109 | 2/5 | 60.0 m | 2 | 13 | running |
+| 5 | 15:09 | 04:44 | 327 | 0.0 | 109 | 2/5 | 43.9 m | 2 | 12 | running |
+| — | shot | 05:45 | 431 | 0.0 | 109 | 3/5 | **22.5 m** | 3 | 13 | running |
+| 6 | 15:10 | 06:04 | 462 | 0.0 | 109 | 3/5 | 36.5 m | 3 | 14 | running |
+| — | shot | 06:24 | 490 | 0.0 | 109 | 3/5 | 36.5 m | 3 | 14 | running |
+| 7 | 15:11 | 07:23 | 566 | 0.0 | 109 | 4/5 | **23.9 m** | 4 | 15 + too fast 1 | running |
+| — | shot | 07:40 | 578 | 0.0 | 109 | 4/5 | **23.9 m** | 4 | 15 + too fast 1 | running |
+
+Raw dumps 1–7 as sent (verbatim) are in the chat log; the table is the same numbers.
+
+### Verdict
+
+**Distance stayed 0 because this APK still uses the 35 m gate, and most of the walk sat at 36–87 m.**
+
+Proof it is the old build, not “cellular is broken”:
+
+- Acc 41.0, 43.9, 52.4, 60.0, 87.6 → all rejected as `poor acc`. On **v0.1.2 those would have been accepted** (gate is 80 m).
+- The two early accepts (32.1 m and 25.0 m) were ~109 s apart in the same cell. Displacement-anchor needs ~50–64 m of *reported* movement between them. They were closer than that, so distance stayed 0 and dwell froze at 109 s.
+- Later accepts (#3, #4) arrived **more than 120 s** after the previous accept, so the gap rule credits neither dwell nor distance. Dwell stuck at 109 s from dump 2 to the end.
+- One `too fast` reset the track (`speed > 8 m/s`) — a GPS jump, not a vehicle. That wipes the anchor.
+- Pin “somewhat accurate” on cellular is real progress vs walk 1 (frozen Wi‑Fi lock). The hex never changed because accepted fixes never left `89209a0aa73ffff`.
+
+Battery: ~1 % / 7 min screen-on. Same story as walks 1–2.
+
+**Next is not another walk on this APK.** Uninstall it. Install **v0.1.2+3** from `releases/terrastep-debug.apk`. Confirm the dump header says `v0.1.2+3` before walking. Then one straight block.
