@@ -5,7 +5,7 @@ no Actions tab, no unzip.
 
 | File | Built | What it is |
 |---|---|---|
-| **[`terrastep-debug.apk`](terrastep-debug.apk)** | 2026-08-18 | First testable Android build. 45 MB, arm64, debug-signed. |
+| **[`terrastep-debug.apk`](terrastep-debug.apk)** | 2026-08-18 **v0.1.1+2** | GPS/permission fix. Uninstall the previous build first. 45 MB, arm64. |
 
 ## Install on your phone
 

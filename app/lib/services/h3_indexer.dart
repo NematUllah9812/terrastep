@@ -3,48 +3,93 @@ import 'package:terrastep_core/domain/session_accumulator.dart';
 
 /// Real H3 implementation of [CellIndexer].
 ///
-/// This is the seam that keeps `terrastep_core` pure: the accumulator depends
-/// on the interface, so all the claim logic is testable under `dart test`
-/// while the native FFI binding stays here in the Flutter package.
-///
-/// Cell ids are lowercase hex strings (e.g. `8928308280fffff`) to match the
-/// `TEXT` column in `01_DATA_MODEL.sql` and what `h3-js` produces.
+/// Load is lazy and failures are swallowed into [loadError] so a missing
+/// native lib cannot take down the GPS listener (the first APK would have
+/// killed the stream on the first fix if `geoToCell` threw).
 class H3Indexer implements CellIndexer {
-  final H3 _h3;
+  H3? _h3;
   final int resolution;
   final int parentResolution;
+  String? loadError;
 
-  H3Indexer({this.resolution = 9, this.parentResolution = 5})
-      : _h3 = const H3Factory().load();
+  H3Indexer({this.resolution = 9, this.parentResolution = 5});
+
+  H3? _lib() {
+    if (_h3 != null) return _h3;
+    try {
+      _h3 = const H3Factory().load();
+      loadError = null;
+    } catch (e) {
+      loadError = e.toString();
+    }
+    return _h3;
+  }
 
   @override
-  String cellFor(double lat, double lng) =>
-      _hex(_h3.geoToCell(GeoCoord(lat: lat, lon: lng), resolution));
+  String cellFor(double lat, double lng) {
+    final h = _lib();
+    if (h == null) return _fallbackCell(lat, lng);
+    return _hex(h.geoToCell(GeoCoord(lat: lat, lon: lng), resolution));
+  }
 
   @override
-  String parentRes5(String cellId) =>
-      _hex(_h3.cellToParent(_parse(cellId), parentResolution));
+  String parentRes5(String cellId) {
+    final h = _lib();
+    if (h == null) return cellId;
+    try {
+      return _hex(h.cellToParent(_parse(cellId), parentResolution));
+    } catch (_) {
+      return cellId;
+    }
+  }
 
-  /// Vertices of a cell, for drawing the hexagon.
-  List<GeoCoord> boundary(String cellId) =>
-      _h3.cellToBoundary(_parse(cellId));
+  List<GeoCoord> boundary(String cellId) {
+    final h = _lib();
+    if (h == null) return const [];
+    try {
+      return h.cellToBoundary(_parse(cellId));
+    } catch (_) {
+      return const [];
+    }
+  }
 
-  /// Centre point of a cell.
-  GeoCoord center(String cellId) => _h3.cellToGeo(_parse(cellId));
+  GeoCoord? center(String cellId) {
+    final h = _lib();
+    if (h == null) return null;
+    try {
+      return h.cellToGeo(_parse(cellId));
+    } catch (_) {
+      return null;
+    }
+  }
 
-  /// All cells within [ringSize] rings of [cellId], including itself.
-  /// Used to draw the grid around the player without querying the whole map.
-  List<String> disk(String cellId, int ringSize) =>
-      _h3.gridDisk(_parse(cellId), ringSize).map(_hex).toList();
+  List<String> disk(String cellId, int ringSize) {
+    final h = _lib();
+    if (h == null) return [cellId];
+    try {
+      return h.gridDisk(_parse(cellId), ringSize).map(_hex).toList();
+    } catch (_) {
+      return [cellId];
+    }
+  }
 
-  /// Hex-grid distance between two cells. Used by the server's path-continuity
-  /// check; mirrored here so the client can pre-filter.
-  int gridDistance(String a, String b) =>
-      _h3.gridDistance(_parse(a), _parse(b));
+  int gridDistance(String a, String b) {
+    final h = _lib();
+    if (h == null) return 0;
+    try {
+      return h.gridDistance(_parse(a), _parse(b));
+    } catch (_) {
+      return 0;
+    }
+  }
 
-  /// h3-js emits 15-char lowercase hex. `BigInt.toRadixString` drops leading
-  /// zeros, which would desync client cell ids from the server (O9).
   static String _hex(BigInt c) => c.toRadixString(16).padLeft(15, '0');
-
   static BigInt _parse(String cellId) => BigInt.parse(cellId, radix: 16);
+
+  /// Coarse grid so the HUD still has a "cell" if H3 failed to load.
+  static String _fallbackCell(double lat, double lng) {
+    final i = (lat * 200).floor();
+    final j = (lng * 200).floor();
+    return 'fb:$i:$j';
+  }
 }

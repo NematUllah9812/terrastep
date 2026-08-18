@@ -2,16 +2,16 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest commit on this write-up:** APK committed to `releases/`
-**Next deliverable:** install the APK and walk a block (see §0b)
+**Latest:** APK **v0.1.1+2** — GPS / permission fix after the first walk (#28)
+**Next deliverable:** uninstall the old APK, install this one, walk again
 
 | | |
 |---|---|
-| **Build** | ✅ Green. 45 MB arm64 debug APK, analyzer clean, `libh3.so` packed. |
+| **Build** | ✅ v0.1.1+2. 45 MB arm64 debug. Analyzer clean. |
 | **Where to download** | [`releases/terrastep-debug.apk`](releases/terrastep-debug.apk) |
 | **Toolchain** | Flutter **3.27.4** / Dart 3.6.2 / JDK 17 / compileSdk 35 |
-| **Why not 3.24.5** | `h3_flutter` 0.7.x cannot resolve on Dart 3.5 — ISSUES_LOG #23 |
-| **Device test** | ⬜ Not done. That is now the only thing blocking 0.1 / 0.2 / 1.1–1.5 / 1.7. |
+| **First walk** | ❌ GPS silent, no permission dialog — #28, fixed in this build |
+| **Device test** | ⬜ Retest with v0.1.1. You do **not** need a long walk to see numbers move. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -354,6 +354,7 @@ Then Phase 1 in order through 1.8, with 1.8 given a full week.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-18 | **v0.1.1+2 — first-walk fix.** Permission dialog + GPS-on button; 1 Hz stream with no 25 m filter; last-known + current-position seed; LocationManager fallback; overlay shows `raw gps` / errors. | #28 |
 | 2026-08-18 | **APK committed to the repo.** `releases/terrastep-debug.apk` (45 MB). Docs reorganized so install / status / issues agree. | #27 |
 | 2026-08-18 | **First green APK.** Flutter 3.27.4, analyzer clean, `libh3.so` packed. Built on a 2 GB box with 4 GB swap and Temurin 17 (Debian 13 has no JDK 17). | #23, #24, #25, #26 |
 | 2026-08-18 | **APK build #1 failed** on open carets pulling plugins that need Flutter 3.38. Versions pinned against pub.dev. | #22 |

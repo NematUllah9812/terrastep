@@ -34,7 +34,12 @@ class _DebugOverlayState extends State<DebugOverlay> {
   void initState() {
     super.initState();
     _pollBattery();
-    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _pollBattery());
+    // 1 Hz so "waiting for GPS" and elapsed update even when the stream is
+    // silent — that was the only motion the first APK showed (#28).
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+      if (DateTime.now().second % 20 == 0) _pollBattery();
+    });
   }
 
   @override
@@ -98,8 +103,10 @@ class _DebugOverlayState extends State<DebugOverlay> {
       ..writeln('m/step ${(v?.metresPerStep ?? 0).toStringAsFixed(2)}')
       ..writeln(
           'gps acc ${tracker.lastAccuracy == null ? '—' : '${tracker.lastAccuracy!.toStringAsFixed(1)} m'}')
+      ..writeln('raw gps ${tracker.rawFixes}')
       ..writeln('accepted ${tracker.fixesAccepted}')
       ..writeln('pedometer $_pedometerLabel')
+      ..writeln('error ${tracker.lastError ?? 'none'}')
       ..writeln('motion ${tracker.motion.name}')
       ..writeln('territory ${tracker.claimed.length} hexes');
     if (tracker.rejections.isNotEmpty) {
@@ -163,6 +170,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
                 _Pill(
                   label: tracker.motion.name,
                   color: switch (tracker.motion) {
+                    MotionState.acquiring => const Color(0xFFFBBF24),
                     MotionState.walking => const Color(0xFF22C55E),
                     MotionState.running => const Color(0xFF3B82F6),
                     MotionState.vehicle => const Color(0xFFEF4444),
@@ -187,8 +195,12 @@ class _DebugOverlayState extends State<DebugOverlay> {
             _row(
                 'gps acc',
                 tracker.lastAccuracy == null
-                    ? '—'
-                    : '${tracker.lastAccuracy!.toStringAsFixed(1)} m'),
+                    ? (tracker.rawFixes == 0 ? 'waiting for GPS…' : '—')
+                    : '${tracker.lastAccuracy!.toStringAsFixed(1)} m',
+                valueColor: tracker.lastAccuracy == null
+                    ? const Color(0xFFFBBF24)
+                    : null),
+            _row('raw gps', '${tracker.rawFixes}'),
             _row('accepted', '${tracker.fixesAccepted}'),
             _row('pedometer', _pedometerLabel,
                 valueColor: tracker.estimatingSteps
@@ -197,6 +209,14 @@ class _DebugOverlayState extends State<DebugOverlay> {
             _row('territory', '${tracker.claimed.length} hexes'),
             _row('battery', _batteryLabel),
             _row('elapsed', _elapsed),
+            if (tracker.lastError != null)
+              _row('error', tracker.lastError!,
+                  valueColor: const Color(0xFFFCA5A5)),
+            if (tracker.indexer.loadError != null)
+              _row('h3', tracker.indexer.loadError!,
+                  valueColor: const Color(0xFFFCA5A5)),
+            if (tracker.location.usingLocationManager)
+              _row('provider', 'LocationManager (fallback)'),
 
             if (rej.isNotEmpty) ...[
               const Divider(height: 14, color: Color(0xFF243352)),

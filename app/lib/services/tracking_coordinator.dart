@@ -62,10 +62,12 @@ class TrackingCoordinator extends ChangeNotifier {
 
   // --- debug counters, shown in the overlay -------------------------------
   int fixesAccepted = 0;
+  int rawFixes = 0;
   final Map<FixRejection, int> rejections = {};
   DateTime? lastFixAt;
   double? lastAccuracy;
-  MotionState motion = MotionState.stationary;
+  MotionState motion = MotionState.acquiring;
+  String? lastError;
 
   StreamSubscription<void>? _locSub;
   StreamSubscription<void>? _stepSub;
@@ -103,15 +105,24 @@ class TrackingCoordinator extends ChangeNotifier {
     sessionStartedAt = DateTime.now();
 
     _locSub = location.fixes.listen((fix) {
-      final cell = accumulator.addFix(fix);
+      rawFixes = location.rawFixes;
+      lastError = location.lastError;
       _position = GeoPoint(fix.lat, fix.lng);
       lastFixAt = fix.at;
       lastAccuracy = fix.accuracy;
-      if (cell != null) {
-        fixesAccepted++;
-        _maybeEstimateSteps();
-        _checkClaims();
+      try {
+        final cell = accumulator.addFix(fix);
+        if (cell != null) {
+          fixesAccepted++;
+          _maybeEstimateSteps();
+          _checkClaims();
+        }
+      } catch (e) {
+        lastError = 'fix: $e';
       }
+      notifyListeners();
+    }, onError: (Object e) {
+      lastError = 'gps: $e';
       notifyListeners();
     });
 
@@ -123,11 +134,16 @@ class TrackingCoordinator extends ChangeNotifier {
 
     _motionSub = location.stateChanges.listen((s) {
       motion = s;
+      lastError = location.lastError;
+      rawFixes = location.rawFixes;
       notifyListeners();
     });
 
     await location.start();
     await steps.start();
+    rawFixes = location.rawFixes;
+    lastError = location.lastError;
+    notifyListeners();
   }
 
   /// Devices without a step counter (or where ACTIVITY_RECOGNITION was

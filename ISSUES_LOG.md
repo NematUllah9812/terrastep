@@ -45,6 +45,7 @@ bottom first, then *Open Items*. The numbered entries are the paper trail.
 | [25](#25--pedometer-would-have-been-silently-empty-on-android-10) | Pedometer silent without runtime grant | 🟡 |
 | [26](#26--local-apk-build-on-a-2-gb-box) | Local APK build on a 2 GB box | 🟡 |
 | [27](#27--the-apk-was-built-but-not-in-the-repo) | APK was built but gitignored | 🟡 |
+| [28](#28--first-device-walk-got-no-gps-and-no-permission-dialog) | First walk: no GPS, no permission dialog | 🔴 |
 
 ---
 
@@ -787,6 +788,60 @@ permission to read.
 
 ---
 
+### #28 🔴 First device walk got no GPS and no permission dialog
+**Symptom** On a real phone the first APK:
+1. Never showed the location permission sheet. The tester had to open
+   **App info → Permissions** by hand, then turn GPS on by hand.
+2. After that, a walk changed **only** battery % and elapsed time.
+   Cell, steps, distance, dwell, gps acc, accepted fixes all stayed
+   at zero / `—`.
+
+**Cause** Two stacked bugs, both in `LocationService`:
+
+1. **GPS-off short-circuits the permission request.**
+   `requestForeground()` returned `denied` if
+   `isLocationServiceEnabled()` was false — *without* asking for the
+   runtime permission and *without* opening location settings. On a
+   phone that ships with Location off (common), the boot screen said
+   "enable GPS and tap retry" but offered no button that actually
+   opened the GPS toggle. The tester went to App Info instead.
+
+2. **25 m distance filter from the first millisecond.**
+   The service started in `MotionState.stationary` with
+   `LocationSettings(distanceFilter: 25)`. On many Android phones
+   (Fused Location) a stream with `distanceFilter > 0` **never emits
+   an initial fix**. The tester walked "some distance" — less than
+   25 m of *GPS-detected* displacement, or GPS never locked — and
+   the overlay's own 20 s battery timer was the only thing that
+   rebuilt the widget. Hence only time and battery moved.
+
+   A third, quieter issue: if `H3Indexer.geoToCell` had thrown on
+   the first fix, the listen callback would have died and every
+   later fix would have been dropped with no UI. Not confirmed on
+   this device, but the stream had no `onError` and no try/catch.
+
+**Fix** (APK **v0.1.1+2**)
+- Ask for location via `permission_handler` (`locationWhenInUse`,
+  then `location` as OEM fallback). Open **Turn on GPS** and **App
+  settings** as real buttons. Re-run the gate when the app resumes
+  from Settings.
+- Seed with `getLastKnownPosition` + `getCurrentPosition`.
+- Stream at 1 Hz, `distanceFilter: 0`, `LocationAccuracy.best`.
+  Do **not** retune the filter until we have five raw fixes.
+- If Fused Location is silent for 8 s, restart with
+  `forceLocationManager: true`.
+- Overlay ticks at 1 Hz and shows `raw gps`, `waiting for GPS…`,
+  and the last error string.
+- H3 load is lazy; a native-lib failure cannot kill the GPS
+  listener.
+
+**Prevention** A sensor test APK must show *why* a sensor is silent
+(permission / GPS off / 0 raw fixes / last error), not just the
+derived game stats. And never put a movement threshold on the first
+lock — you cannot filter a stream that has not started.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
@@ -800,7 +855,7 @@ Known problems not yet solved. Carry these forward.
 | O5 | `admin_rollback_user()` untested | 4.8 | Needs a reassignment fixture |
 | O6 | RLS hostile test not written | 2.4 | Needs a real JWT — can't be shimmed |
 | O7 | Background battery drain unmeasured | 0.3 | **Highest project risk — awaiting device test** |
-| O8 | APK still not compiled | 1.1 | **Resolved 2026-08-18.** 45 MB arm64 debug APK in `releases/terrastep-debug.apk`. Device walk is now the gate, not the compiler. |
+| O8 | APK still not compiled | 1.1 | **Resolved.** v0.1.1+2 in `releases/`. First walk (#28) showed GPS was silent. |
 | O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
 | O10 | Anti-drift filter untuned against real GPS | 4.2 | Tuned on synthetic jitter. Real GPS may need a different `_anchorFactor`. |
 | O11 | Foreground service not implemented | 1.8 | Tracking currently stops when the app is backgrounded. Needed for the real battery test. |

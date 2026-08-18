@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'services/h3_indexer.dart';
@@ -34,7 +33,8 @@ class TerrastepApp extends StatelessWidget {
       );
 }
 
-/// Requests permission, then starts tracking.
+/// Permission gate. Re-runs when the app comes back from Settings so a
+/// grant made in App Info actually starts tracking (ISSUES_LOG #28).
 class _Boot extends StatefulWidget {
   const _Boot();
 
@@ -42,73 +42,87 @@ class _Boot extends StatefulWidget {
   State<_Boot> createState() => _BootState();
 }
 
-class _BootState extends State<_Boot> {
+class _BootState extends State<_Boot> with WidgetsBindingObserver {
   TrackingCoordinator? _tracker;
   String? _error;
   bool _busy = false;
+  bool _gpsOff = false;
+  bool _needSettings = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _start();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tracker?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _tracker == null && !_busy) {
+      _start();
+    }
   }
 
   Future<void> _start() async {
     setState(() {
       _busy = true;
       _error = null;
+      _gpsOff = false;
+      _needSettings = false;
     });
 
-    if (!await Geolocator.isLocationServiceEnabled()) {
+    final result = await LocationService.requestForeground();
+    if (!mounted) return;
+
+    if (result != 'ok') {
       setState(() {
         _busy = false;
-        _error = 'Location is turned off. Enable GPS and tap retry.';
+        _gpsOff = result == 'gps_off';
+        _needSettings = result == 'permanent';
+        _error = switch (result) {
+          'gps_off' =>
+            'Location (GPS) is turned off. Tap “Turn on GPS”, enable it, then come back.',
+          'permanent' =>
+            'Location permission is blocked. Tap “App settings” → Permissions → Location → Allow.',
+          _ =>
+            'Terrastep needs location to award territory. Tap Grant and allow it.',
+        };
       });
       return;
     }
 
-    final perm = await LocationService.requestForeground();
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
-      setState(() {
-        _busy = false;
-        _error = perm == LocationPermission.deniedForever
-            ? 'Location permission was permanently denied. Enable it in '
-                'Settings › Apps › Terrastep › Permissions.'
-            : 'Terrastep needs location to award you territory.';
-      });
-      return;
-    }
-
-    // ACTIVITY_RECOGNITION is a runtime permission on Android 10+. The
-    // pedometer plugin does not request it; without the grant the step
-    // stream is silently empty and no hex can ever be claimed. Denial is
-    // non-fatal — TrackingCoordinator falls back to stride-estimated steps
-    // so a tester without the sensor can still exercise the loop.
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
         await Permission.activityRecognition.request();
       } catch (_) {}
     }
 
-    final t = TrackingCoordinator(
-      indexer: H3Indexer(),
-      location: LocationService(),
-      steps: StepService(),
-    );
-    await t.init();
-
-    if (!mounted) return;
-    setState(() {
-      _tracker = t;
-      _busy = false;
-    });
-  }
-
-  @override
-  void dispose() {
-    _tracker?.dispose();
-    super.dispose();
+    try {
+      final t = TrackingCoordinator(
+        indexer: H3Indexer(),
+        location: LocationService(),
+        steps: StepService(),
+      );
+      await t.init();
+      if (!mounted) return;
+      setState(() {
+        _tracker = t;
+        _busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Failed to start sensors: $e';
+      });
+    }
   }
 
   @override
@@ -137,17 +151,26 @@ class _BootState extends State<_Boot> {
                 const CircularProgressIndicator()
               else ...[
                 Text(
-                  _error ?? '',
+                  _error ?? 'Location and steps are used only on this phone.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFFFCA5A5)),
+                  style: TextStyle(
+                    color: _error == null
+                        ? const Color(0xFF8FA3C4)
+                        : const Color(0xFFFCA5A5),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
                     onPressed: _start, child: const Text('Grant & start')),
-                if (_error?.contains('Settings') ?? false)
+                if (_gpsOff)
                   TextButton(
-                    onPressed: Geolocator.openAppSettings,
-                    child: const Text('Open settings'),
+                    onPressed: LocationService.openGpsSettings,
+                    child: const Text('Turn on GPS'),
+                  ),
+                if (_needSettings || _error != null)
+                  TextButton(
+                    onPressed: LocationService.openAppSettingsPage,
+                    child: const Text('App settings'),
                   ),
               ],
             ],
