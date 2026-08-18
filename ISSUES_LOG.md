@@ -242,6 +242,40 @@ fix, not just the symptom.
 
 ---
 
+### #16 🔴 `run_tests.sh` not re-runnable — orphaned postmaster holds the port
+**Symptom** Second invocation fails:
+```
+pg_ctl: could not start server
+FATAL: could not create any TCP/IP sockets
+LOG: could not bind IPv4 address "127.0.0.1": Address already in use
+```
+
+**Cause** Three compounding bugs, found by *testing the documented resume
+procedure* rather than assuming it worked:
+1. The script never stopped the server it started, so a postmaster from the
+   previous run kept holding port 5433.
+2. Deleting `PGDATA` orphaned that process — no pid file, so `pg_ctl status`
+   reported "not running" while the port stayed bound.
+3. The port was hardcoded, so there was no fallback.
+
+Also masked by `pg_ctl ... >/dev/null` swallowing the real error.
+
+**Fix** Four changes:
+- Stop any prior server before starting (`pg_ctl -m immediate stop || true`)
+- `trap cleanup EXIT` so the server always shuts down
+- Probe 5433–5460 for a free port instead of assuming one
+- On failure, print the Postgres log tail instead of a bare error
+- Validate `PGDATA` with `PG_VERSION`, not just directory existence
+
+**Verified** Three consecutive runs — with an orphan running, immediately again,
+and after deleting `PGDATA` — all 48 passing.
+
+**Prevention** **A "run this to get started" command must be idempotent.** Test
+it twice in a row, and once after deleting its state. This bug only surfaced
+because the documented resume steps were actually executed.
+
+---
+
 ## Security & Git
 
 ### #12 🟢 CI secret scanner would have failed on its own documentation

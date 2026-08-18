@@ -260,7 +260,7 @@ re-checked on real Supabase:
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-18 | Added `ISSUES_LOG.md` (15 entries, 7 open items) and a resume-anywhere section. | — |
+| 2026-08-18 | Added `ISSUES_LOG.md` (16 entries, 7 open items) and a resume-anywhere section. | — |
 | 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost exec bit, and Postgres discovery across Debian/Homebrew/Postgres.app. Verified clean-slate run on a bare machine. | #10, #11, #12 |
 | 2026-08-17 | Switched from a classic PAT to a fine-grained, one-repo, 7-day token. | #13, #14, #15 |
 | 2026-08-17 | Initial plan, schema, claim engine, prototype, 48-test suite. | #1–#9 |

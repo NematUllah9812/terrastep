@@ -32,21 +32,40 @@ if ! command -v initdb >/dev/null 2>&1; then
 fi
 
 PGDATA=${PGDATA:-/tmp/terrastep_pg}
-PORT=${PGPORT:-5433}
 SOCK=/tmp/terrastep_sock
 mkdir -p "$SOCK"
 
-if [ ! -d "$PGDATA" ]; then
+# Stop any server still running from a previous invocation. A stale postmaster
+# holding the port is the most common reason a re-run fails (ISSUES_LOG #16).
+pg_ctl -D "$PGDATA" -m immediate stop >/dev/null 2>&1 || true
+
+if [ ! -d "$PGDATA" ] || [ ! -f "$PGDATA/PG_VERSION" ]; then
   echo "→ initdb"
+  rm -rf "$PGDATA"
   initdb -D "$PGDATA" -U postgres >/dev/null
 fi
 
-if ! pg_ctl -D "$PGDATA" status >/dev/null 2>&1; then
-  echo "→ starting postgres on :$PORT"
-  pg_ctl -D "$PGDATA" -l /tmp/terrastep_pg.log \
-         -o "-k $SOCK -p $PORT" start >/dev/null
-  sleep 2
+# Find a free port rather than assuming one is available.
+PORT=${PGPORT:-}
+if [ -z "$PORT" ]; then
+  for p in $(seq 5433 5460); do
+    if ! (exec 3<>/dev/tcp/127.0.0.1/$p) 2>/dev/null; then PORT=$p; break; fi
+    exec 3<&- 2>/dev/null || true
+  done
 fi
+[ -z "$PORT" ] && { echo "ERROR: no free port in 5433-5460" >&2; exit 1; }
+
+echo "→ starting postgres on :$PORT"
+if ! pg_ctl -D "$PGDATA" -l /tmp/terrastep_pg.log \
+            -o "-k $SOCK -p $PORT" -w -t 30 start >/dev/null 2>&1; then
+  echo "ERROR: postgres failed to start. Log tail:" >&2
+  tail -15 /tmp/terrastep_pg.log >&2
+  exit 1
+fi
+
+# Always shut the server down on exit, so a later run starts clean.
+cleanup() { pg_ctl -D "$PGDATA" -m immediate stop >/dev/null 2>&1 || true; }
+trap cleanup EXIT
 
 PSQL="psql -h $SOCK -p $PORT -U postgres -q -v ON_ERROR_STOP=1"
 
