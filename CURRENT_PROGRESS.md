@@ -2,16 +2,15 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** Walk 3 stored (cellular). Distance 0 again — still on **v0.1.0** (35 m gate).
+**Latest:** **Threshold 1.7 complete.** Claim + force-quit persist (hex stayed blue, tried multiple times).
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
-**Next deliverable:** uninstall old APK → install **v0.1.2+3** → dump must say `v0.1.2+3` → walk
+**Next according to the plan:** **1.8 / 0.3** — foreground service, then a pocket walk with the screen off.
 
 | | |
 |---|---|
-| **Walk 1** | Wi‑Fi lock. Dist 0. Acc 42–300 m. |
-| **Walk 2** | GNSS 24.5 m. Dist **64.1 / 80**. Almost a claim. |
-| **Walk 3** | Cellular, pin ok. 578 steps, dist **0**. Acc 22–87 m. 15× poor acc + 1 too fast. **Old 35 m APK.** |
-| **Battery** | ~1 % / 7 min screen-on. |
+| **1.7** | ✅ Walk 4 claimed `89209a0aa73ffff`. Force-quit × N → still blue. |
+| **Walks 1–3** | Old 35 m APK. Best was walk 2 at 64/80 m. |
+| **Next build** | O11 foreground service. Without it, tracking dies when the screen locks. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -146,9 +145,9 @@ The APK needs nothing — download `releases/terrastep-debug.apk`.
 
 ## 1. Honest Summary
 
-**Three walks.** Walk 2 proved the loop (64 m of 80). Walk 3 was still the
-old 35 m APK on cellular — 15 rejects in the 36–87 m band that v0.1.2
-would have kept. Next is install, not another walk on v0.1.0.
+**Threshold 1.7 is done.** A real phone claimed a hex, and the hex
+survived force-quit. Phase 1’s remaining boss fight is **1.8**
+(pocket / screen-off), which is also Phase 0’s GO/NO-GO (**0.3**).
 
 The backend is real code, not a sketch: 48 behavioural assertions pass
 (claiming, contesting, hysteresis, decay, idempotency, teleport rejection,
@@ -170,8 +169,8 @@ on it.
 | Claim / contest / decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
 | Supabase deployment | ❌ Local Postgres only |
-| Flutter app | 🟡 Claims on device; persist untested |
-| Real GPS / steps / battery | 🟡 Walk 4: claim + 3.4 m lock. Pocket test not done |
+| Flutter app | 🟡 Claims + persist on Android. No FGS, no iOS. |
+| Real GPS / steps / battery | 🟡 Screen-on claim proven. Pocket battery unmeasured. |
 | Store submission | ❌ Not started |
 
 ---
@@ -184,22 +183,22 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | Compiles. flutter_map + OSM + blue dot (not MapLibre — #21). Needs tiles + tracking on a phone. |
-| 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | Compiles. Real `h3_flutter` 0.7.1, ids padded to 15 chars. Unverified against h3-js (O9). |
+| 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | **On device** (flutter_map + OSM, not MapLibre — #21). |
+| 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | **On device.** Cell `89209a0aa73ffff`. Still unverified vs h3-js (O9). |
 | 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **GO/NO-GO.** This APK is foreground-only. Pocket test waits on O11. |
 
-### PHASE 1 — Local Prototype *(1 / 8 done, 6 waiting on a walk)*
+### PHASE 1 — Local Prototype *(2 / 8 done)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 1.1 | Map basemap | 🟡 | flutter_map + OSM compile; needs on-device fps / tile check |
-| 1.2 | Location permissions | 🟡 | Foreground location + ACTIVITY_RECOGNITION implemented |
-| 1.3 | H3 integration | 🟡 | `H3Indexer` on the `CellIndexer` seam; unverified vs h3-js |
-| 1.4 | Hex grid overlay | 🟡 | Real H3 polygons; claimed hexes stay on the map |
-| 1.5 | Step source | 🟡 | Hardware pedometer + 0.78 m stride fallback. Health Connect later. |
-| 1.6 | `SessionAccumulator` + unit tests | ✅ | 27/27 passing. Fixed the armchair-claim exploit (#17). |
-| 1.7 | Local claim + persist | 🟡 | SharedPreferences written; needs force-quit test on device |
-| 1.8 | Background survival, <4%/hr | ⬜ | Foreground service not implemented (O11). |
+| 1.1 | Map basemap | 🟡 | OSM + follow on a real Android |
+| 1.2 | Location permissions | 🟡 | Android grant flow works. iOS / “Always” not done. |
+| 1.3 | H3 integration | 🟡 | Live cell ids. Not compared to h3-js (O9). |
+| 1.4 | Hex grid overlay | 🟡 | 2-ring + claimed blue fill on device |
+| 1.5 | Step source | 🟡 | Pedometer matches HUD. Health Connect later. |
+| 1.6 | `SessionAccumulator` + unit tests | ✅ | 27/27. Armchair-claim exploit fixed (#17). |
+| 1.7 | Local claim + persist | ✅ | **Claim + force-quit × N, hex stayed blue.** SharedPreferences, not SQLite. |
+| 1.8 | Background survival, <4%/hr | ⬜ | **Next.** Needs O11 foreground service, then a pocket walk. |
 
 ### PHASE 2 — Backend & Persistence *(4 / 9)*
 
@@ -252,19 +251,17 @@ All ⬜. Not started.
 | Phase | ✅ Done | 🟡 Partial | ⬜ Not started | Total |
 |---|---|---|---|---|
 | 0 — Spike | 0 | 2 | 1 | 3 |
-| 1 — Prototype | 1 | 6 | 1 | 8 |
+| 1 — Prototype | 2 | 5 | 1 | 8 |
 | 2 — Backend | 4 | 4 | 1 | 9 |
 | 3 — Multiplayer | 2 | 4 | 2 | 8 |
 | 4 — Anti-cheat | 3 | 4 | 1 | 8 |
 | 5 — Launch | 0 | 0 | 9 | 9 |
-| **Total** | **10** | **20** | **15** | **45** |
+| **Total** | **11** | **19** | **15** | **45** |
 
-**Fully complete: 10 / 45 (22%).**
-Partials at half credit: ~20 / 45 (**~44%**).
+**Fully complete: 11 / 45 (24%).**
+Partials at half credit: ~20.5 / 45 (**~46%**).
 
-The percentage barely moved because the APK is *instrumentation*, not
-acceptance. 0.1 / 0.2 / 1.1–1.5 / 1.7 flip to ✅ the moment a hex fills
-on a real sidewalk.
+1.7 is the first on-device acceptance test that fully passed.
 
 **Hours burned vs. estimate:** roughly 35–40 h of the ~215 h estimate —
 front-loaded on design. Remaining work is more implementation-dense than
@@ -332,13 +329,14 @@ latency target, and **anything on a real phone**.
 
 **Do these in this order. Nothing else first.**
 
-1. **Force-quit Terrastep, reopen.** If the hex is still blue, 1.7 persist is done.
-   Copy the overlay either way.
-2. **Foreground service (O11)** so the real 0.3 / 1.8 pocket test can run.
-3. **Deploy to a real Supabase project** (threshold 2.1, properly). ~1 hour.
-4. **Clear the four test-debt items.** ~4 hours.
+1. **Foreground service (O11 / threshold 1.8).** Tracking must survive
+   screen-off and a pocketed phone. Then measure drain (also 0.3).
+   Target <4 %/hr; stop-and-redesign if >6 %/hr.
+2. **Deploy to a real Supabase project** (threshold 2.1). ~1 hour.
+3. **Clear the four test-debt items.** ~4 hours.
 
-Then Phase 1 in order through 1.8, with 1.8 given a full week.
+Phase 1 does **not** exit until 1.8 passes (friend walks a block with
+the app in their pocket). Do not start Phase 2 multiplayer until then.
 
 **Already in place**
 
@@ -353,7 +351,9 @@ Then Phase 1 in order through 1.8, with 1.8 given a full week.
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-18 | **Walk 3 (cellular).** 578 steps, dist 0, acc 22–87 m, 15× poor acc + 1 too fast. Still the v0.1.0 / 35 m APK. | — |
+| 2026-08-18 | **1.7 complete.** Claim + persist. Force-quit multiple times, hex stayed blue. | — |
+| 2026-08-18 | **Walk 4 / first claim.** v0.1.2+3, brother. Territory 1. 512/512 fixes. | — |
+| 2026-08-18 | **Walk 3 (cellular).** 578 steps, dist 0. Still the v0.1.0 / 35 m APK. | — |
 | 2026-08-18 | **Walk 2.** GNSS 24.5 m. 412 steps, 64.1/80 m. No claim — 16 m short. | — |
 | 2026-08-18 | **v0.1.2+3 + field report.** Client acc gate 35→80 m. GPS-chip fallback when the lock is Wi‑Fi-only. | #29 |
 | 2026-08-18 | **v0.1.1+2 — first-walk fix.** Permission dialog + GPS-on button; 1 Hz stream with no 25 m filter; last-known + current-position seed; LocationManager fallback; overlay shows `raw gps` / errors. | #28 |

@@ -9,10 +9,9 @@ here.** This file is the work queue: a box is checked only when the
 acceptance test has actually been run. Code that compiles but has not
 been walked is still unchecked.
 
-**Where we are (2026-08-18):** testing APK is in
-[`releases/terrastep-debug.apk`](releases/terrastep-debug.apk).
-1.6 is the only Phase 0/1 box that is honestly ✅ (unit tests). 0.1, 0.2
-and 1.1–1.5 / 1.7 are implemented and waiting on one sidewalk walk.
+**Where we are (2026-08-18):** **1.6 and 1.7 are ✅.** A real Android
+claimed a hex and it survived force-quit. Next is **1.8 / 0.3**
+(foreground service + pocket walk). APK: `releases/terrastep-debug.apk`.
 
 ---
 
@@ -38,8 +37,8 @@ and 1.1–1.5 / 1.7 are implemented and waiting on one sidewalk walk.
 | 1.3 | H3 integration | `latLngToCell(34.1688, 73.2215, 9)` matches h3-js output exactly | 2 h |
 | 1.4 | Hex grid overlay | 2-ring around current cell renders; hexes align with roads when zoomed | 4 h |
 | 1.5 | Step source | Steps increment within 5 s of walking; works after app restart | 6 h |
-| 1.6 | `SessionAccumulator` | **All 6 unit tests in `03_CLIENT_ARCHITECTURE.md §5` pass** | 8 h |
-| 1.7 | Local claim + SQLite persist | Walk a block → hex fills → force-quit → reopen → hex still filled | 5 h |
+| 1.6 | `SessionAccumulator` | **✅ Unit tests pass.** | 8 h |
+| 1.7 | Local claim + persist | **✅ Walk → hex fills → force-quit → still blue.** (SharedPreferences, not SQLite.) | 5 h |
 | 1.8 | Background survival | 30-min walk, screen off, phone pocketed → correct hexes claimed, <4%/hr drain | 12 h |
 
 **Exit criteria:** You can hand your phone to a friend, they walk around the

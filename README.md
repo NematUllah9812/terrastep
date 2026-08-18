@@ -138,6 +138,6 @@ select * from pg_available_extensions where name like 'h3%';
 
 ≈ 5 months part-time at 12 h/week.
 
-**Next action:** install `releases/terrastep-debug.apk` **v0.1.2**, set
-Location to High accuracy (GPS on), walk again. First-walk write-up:
-[`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md).
+**Next action (plan):** threshold **1.8 / 0.3** — foreground service,
+then a pocket walk, screen off. 1.7 (claim + persist) is done.
+Write-up: [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md).

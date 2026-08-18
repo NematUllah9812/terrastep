@@ -255,10 +255,15 @@ Screenshot ~09:58: steps 110, dist 39.4, dwell 54, fixes 51, acc 24.5 m, raw/acc
 
 Battery 59 % at 09:16 (screenshot 58 % at 09:58). Screen-on, same order as before.
 
-### Not yet proven
+### Persist (same evening)
 
-- **1.7 persist:** force-quit, reopen, hex still blue.
-- **1.8 / 0.3 pocket battery:** needs the foreground service.
+Tester force-quit and reopened **multiple times**. Hex stayed blue.
+**Threshold 1.7 is done** (claim + persist). Storage is SharedPreferences,
+not SQLite — good enough for Phase 1.
+
+### Still open
+
+- **1.8 / 0.3 pocket battery:** needs the foreground service (O11).
 - Claim in a *second* hex (walk out of `89209a0aa73ffff`).
 
 ---
