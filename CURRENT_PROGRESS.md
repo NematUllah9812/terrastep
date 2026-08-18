@@ -2,7 +2,54 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest commit:** CI workflow + SECURITY.md
+**Latest commit:** Issues log + docs index
+
+> **Resuming on a new machine?** Read §0 below, then `ISSUES_LOG.md`
+> "Recurring Patterns". The sandbox/toolchain is ephemeral — expect to
+> reinstall Postgres and re-set git identity before anything runs.
+
+---
+
+## 0. Pick Up Where We Left Off
+
+Everything needed to continue is committed. No local state matters.
+
+**Repo map**
+
+| File | Purpose |
+|---|---|
+| `README.md` | Orientation + quick start |
+| `00_MASTER_PLAN.md` | Architecture, 5 core decisions, roadmap |
+| `01_DATA_MODEL.sql` | Schema, RLS, decay, matviews, cron |
+| `02_CLAIM_ENGINE.sql` | `claim_cells` RPC — the referee |
+| `03_CLIENT_ARCHITECTURE.md` | Flutter structure, battery, sync |
+| `04_ANTI_CHEAT.md` | Threat model, 4 defence layers |
+| `05_COST_MODEL.md` | Free-tier ceilings, upgrade triggers |
+| `06_MILESTONE_CHECKLIST.md` | 45 thresholds + acceptance tests |
+| **`CURRENT_PROGRESS.md`** | **This file — status** |
+| **`ISSUES_LOG.md`** | **Every blocker hit and how it was fixed** |
+| `SECURITY.md` | Credential handling rules |
+| `prototype/index.html` | Playable claim-loop prototype |
+| `tests/` | 48-assertion suite + Supabase shim |
+
+**Restore a working environment**
+
+```bash
+git clone https://github.com/NematUllah9812/terrastep.git && cd terrastep
+
+# 1. Toolchain (NOT persisted anywhere — see ISSUES_LOG #3)
+sudo apt-get install -y postgresql        # or: brew install postgresql@17
+
+# 2. Git identity (resets — see ISSUES_LOG #4)
+git config user.email "nematullah9812@users.noreply.github.com"
+git config user.name  "NematUllah9812"
+
+# 3. Verify everything still works
+./tests/run_tests.sh                      # expect: ALL 48 TESTS PASSED
+```
+
+If that prints 48/48, the backend is intact and you can start work.
+The prototype needs nothing — open `prototype/index.html` in any browser.
 
 ---
 
@@ -211,7 +258,9 @@ re-checked on real Supabase:
 
 ## 7. Changelog
 
-| Date | Change |
-|---|---|
-| 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost executable bit, and Postgres discovery now handles Debian/Homebrew/Postgres.app with a clear error when missing. Verified clean-slate run on a bare machine. |
-| 2026-08-17 | Initial plan, schema, claim engine, prototype, 48-test suite. |
+| Date | Change | Issues |
+|---|---|---|
+| 2026-08-18 | Added `ISSUES_LOG.md` (15 entries, 7 open items) and a resume-anywhere section. | — |
+| 2026-08-18 | Added CI workflow (48 assertions + secret scan) and `SECURITY.md`. Fixed `run_tests.sh`: lost exec bit, and Postgres discovery across Debian/Homebrew/Postgres.app. Verified clean-slate run on a bare machine. | #10, #11, #12 |
+| 2026-08-17 | Switched from a classic PAT to a fine-grained, one-repo, 7-day token. | #13, #14, #15 |
+| 2026-08-17 | Initial plan, schema, claim engine, prototype, 48-test suite. | #1–#9 |

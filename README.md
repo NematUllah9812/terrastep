@@ -23,6 +23,9 @@ All 48 pass.
 | **`04_ANTI_CHEAT.md`** | Threat model (9 attacks), the 4 defence layers, why the step/distance ratio rule is the strongest single check, behavioural scoring SQL, and the shadow-ban ladder. |
 | **`05_COST_MODEL.md`** | Where the free tier actually breaks (~600 MAU on storage, ~430 DAU on egress) and the specific changes that push it to ~2,500 MAU. Real year-one cost: **$124**. |
 | **`06_MILESTONE_CHECKLIST.md`** | 45 thresholds across 6 phases, each with a binary acceptance test and an hour estimate. This is your actual work queue. |
+| **`CURRENT_PROGRESS.md`** | Where we are against those 45 thresholds, plus a "resume on any machine" setup section. **Start here when picking the project back up.** |
+| **`ISSUES_LOG.md`** | Every blocker hit so far — symptom, cause, fix, prevention — plus open items carried forward. |
+| **`SECURITY.md`** | Credential handling: the Supabase publishable/secret split, token scoping, leak response. |
 | **`prototype/index.html`** | Zero-dependency browser prototype of the claim loop. Walk around, claim hexes, spawn rivals, watch territory decay. |
 | **`tests/`** | The acceptance suite + a local-Postgres shim for Supabase. |
 
