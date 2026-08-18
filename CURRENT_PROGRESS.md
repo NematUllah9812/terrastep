@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** Walk 5 — **3 hexes**, screen mostly off. Two bugs found (reclaim + step leak). Fix in v0.1.3.
+**Latest:** **v0.1.3+4 APK uploaded.** Reclaim + step-leak fixes (#30).
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
 **Next according to the plan:** **1.8 / 0.3** — real foreground service, then a controlled pocket walk.
 

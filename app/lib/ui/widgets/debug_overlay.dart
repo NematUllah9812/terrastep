@@ -92,7 +92,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
     final v = tracker.currentVisit;
     final cfg = tracker.cfg;
     final buf = StringBuffer()
-      ..writeln('Terrastep debug  v0.1.2+3')
+      ..writeln('Terrastep debug  v0.1.3+4')
       ..writeln('elapsed $_elapsed   battery $_batteryLabel')
       ..writeln('cell ${v?.cellId ?? '—'}')
       ..writeln('steps ${v?.steps ?? 0} / ${cfg.claimMinSteps}')

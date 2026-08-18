@@ -5,7 +5,7 @@ no Actions tab, no unzip.
 
 | File | Built | What it is |
 |---|---|---|
-| **[`terrastep-debug.apk`](terrastep-debug.apk)** | 2026-08-18 **v0.1.2+3** | 80 m accuracy gate + GPS-chip fallback. Uninstall the old build first. |
+| **[`terrastep-debug.apk`](terrastep-debug.apk)** | 2026-08-18 **v0.1.3+4** | Reclaim + step-leak fixes (#30). Uninstall the old build first. |
 
 ## Install on your phone
 
