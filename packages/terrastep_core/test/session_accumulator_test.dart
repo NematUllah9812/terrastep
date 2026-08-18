@@ -262,26 +262,30 @@ void main() {
       expect(firstCell.steps, equals(100));
     });
 
-    test('orphan steps from a claimed visit do not inflate the next hex', () {
-      final start = DateTime.utc(2026, 8, 18, 9, 0, 0);
+    test('orphan steps after markSubmitted do not leak into next visit (#30)', () {
+      final t0 = DateTime.utc(2026, 8, 18, 9, 0, 0);
       acc.addFix(GeoFix(
-          lat: 34.1688, lng: 73.2215, accuracy: 8, at: start));
-      acc.addSteps(200, start.add(const Duration(seconds: 1)));
-      expect(acc.visits.values.first.steps, equals(200));
-
-      // Claim wipes the visit (markSubmitted). Walk into a new cell.
-      acc.markSubmitted(acc.visits.values.toList());
+          lat: 34.1688, lng: 73.2215, accuracy: 8, speed: 1.2, at: t0));
       acc.addFix(GeoFix(
-        lat: 34.1800,
+        lat: 34.1688,
         lng: 73.2215,
         accuracy: 8,
-        at: start.add(const Duration(minutes: 2)),
+        speed: 1.2,
+        at: t0.add(const Duration(seconds: 30)),
       ));
-
-      // Delayed pedometer batch stamped during the *old* visit.
-      acc.addSteps(200, start.add(const Duration(seconds: 2)));
-      expect(acc.currentVisit!.steps, equals(0),
-          reason: 'late steps from the previous hex must not land on the new one');
+      final old = acc.currentVisit!;
+      acc.markSubmitted([old]);
+      acc.addFix(GeoFix(
+        lat: 34.1688,
+        lng: 73.2215,
+        accuracy: 8,
+        speed: 1.2,
+        at: t0.add(const Duration(seconds: 40)),
+      ));
+      final neu = acc.currentVisit!;
+      acc.addSteps(140, t0.add(const Duration(seconds: 10)));
+      expect(neu.steps, equals(0),
+          reason: 'delayed batches from a deleted visit must not inflate the next hex');
     });
 
     test('zero or negative step deltas are ignored', () {

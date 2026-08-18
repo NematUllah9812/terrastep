@@ -8,9 +8,10 @@ code, anti-cheat design, cost ceilings, and a 45-threshold roadmap.
 `tests/run_tests.sh` asserts 48 behavioural tests (claiming, contesting,
 hysteresis, decay, idempotency, teleport, shadow-ban). All 48 pass.
 The Android debug build lives at
-[`releases/terrastep-debug.apk`](releases/terrastep-debug.apk).
-It has not been walked on a real phone yet — that is the next step.
-See [`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md).
+[`releases/terrastep-debug.apk`](releases/terrastep-debug.apk)
+(**v0.1.4+5**, foreground service). Threshold **1.7 is done**. Next is
+the pocket walk that scores **1.8 / 0.3**. See
+[`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md).
 
 ---
 
@@ -48,7 +49,9 @@ Screen on, app open, walk a block. Screenshot the debug overlay.
 Details in [`app/README.md`](app/README.md) and
 [`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md) §0b.
 
-This build does **not** track with the screen off.
+This build **does** track with the screen off (persistent
+*Terrastep is tracking* notification). Uninstall any older APK first.
+Dump header must say `v0.1.4+5`.
 
 ### 1. Play the browser prototype (30 seconds)
 
@@ -138,6 +141,6 @@ select * from pg_available_extensions where name like 'h3%';
 
 ≈ 5 months part-time at 12 h/week.
 
-**Next action (plan):** threshold **1.8 / 0.3** — foreground service,
-then a pocket walk, screen off. 1.7 (claim + persist) is done.
+**Next action:** Walk 7 — 20–30 min pocket, screen off, on **v0.1.4+5**.
+Copy the overlay after. That scores 1.8 / 0.3.
 Write-up: [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md).

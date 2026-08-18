@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:terrastep_core/core/game_config.dart';
 
+import 'app_version.dart';
 import 'services/h3_indexer.dart';
 import 'services/location_service.dart';
 import 'services/step_service.dart';
@@ -33,8 +36,6 @@ class TerrastepApp extends StatelessWidget {
       );
 }
 
-/// Permission gate. Re-runs when the app comes back from Settings so a
-/// grant made in App Info actually starts tracking (ISSUES_LOG #28).
 class _Boot extends StatefulWidget {
   const _Boot();
 
@@ -46,7 +47,7 @@ class _BootState extends State<_Boot> with WidgetsBindingObserver {
   TrackingCoordinator? _tracker;
   String? _error;
   bool _busy = false;
-  bool _gpsOff = false;
+  bool _needGps = false;
   bool _needSettings = false;
 
   @override
@@ -74,55 +75,74 @@ class _BootState extends State<_Boot> with WidgetsBindingObserver {
     setState(() {
       _busy = true;
       _error = null;
-      _gpsOff = false;
+      _needGps = false;
       _needSettings = false;
     });
 
-    final result = await LocationService.requestForeground();
-    if (!mounted) return;
-
-    if (result != 'ok') {
+    if (!await Geolocator.isLocationServiceEnabled()) {
       setState(() {
         _busy = false;
-        _gpsOff = result == 'gps_off';
-        _needSettings = result == 'permanent';
-        _error = switch (result) {
-          'gps_off' =>
-            'Location (GPS) is turned off. Tap “Turn on GPS”, enable it, then come back.',
-          'permanent' =>
-            'Location permission is blocked. Tap “App settings” → Permissions → Location → Allow.',
-          _ =>
-            'Terrastep needs location to award territory. Tap Grant and allow it.',
-        };
+        _needGps = true;
+        _error = 'Location is turned off. Enable GPS and tap retry.';
       });
       return;
+    }
+
+    PermissionStatus loc = PermissionStatus.denied;
+    try {
+      loc = await Permission.locationWhenInUse.request();
+      if (!loc.isGranted) loc = await Permission.location.request();
+    } catch (_) {}
+
+    if (!loc.isGranted) {
+      final viaGeo = await LocationService.requestForeground();
+      if (viaGeo == LocationPermission.deniedForever || loc.isPermanentlyDenied) {
+        setState(() {
+          _busy = false;
+          _needSettings = true;
+          _error = 'Location permission was permanently denied. Enable it in '
+              'Settings › Apps › Terrastep › Permissions.';
+        });
+        return;
+      }
+      if (viaGeo != LocationPermission.always &&
+          viaGeo != LocationPermission.whileInUse) {
+        setState(() {
+          _busy = false;
+          _error = 'Terrastep needs location to award you territory.';
+        });
+        return;
+      }
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
         await Permission.activityRecognition.request();
       } catch (_) {}
+      try {
+        await Permission.notification.request();
+      } catch (_) {}
     }
 
-    try {
-      final t = TrackingCoordinator(
-        indexer: H3Indexer(),
-        location: LocationService(),
-        steps: StepService(),
-      );
-      await t.init();
-      if (!mounted) return;
-      setState(() {
-        _tracker = t;
-        _busy = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = 'Failed to start sensors: $e';
-      });
+    final t = TrackingCoordinator(
+      indexer: H3Indexer(),
+      location: LocationService(),
+      steps: StepService(),
+      cfg: const GameConfig(maxAccuracyM: 80),
+    );
+    await t.init();
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await Permission.ignoreBatteryOptimizations.request();
+      } catch (_) {}
     }
+
+    if (!mounted) return;
+    setState(() {
+      _tracker = t;
+      _busy = false;
+    });
   }
 
   @override
@@ -146,31 +166,31 @@ class _BootState extends State<_Boot> with WidgetsBindingObserver {
               const SizedBox(height: 6),
               const Text('Walk to claim territory.',
                   style: TextStyle(color: Color(0xFF8FA3C4))),
+              const SizedBox(height: 4),
+              Text(kAppVersion,
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF64748B))),
               const SizedBox(height: 28),
               if (_busy)
                 const CircularProgressIndicator()
               else ...[
                 Text(
-                  _error ?? 'Location and steps are used only on this phone.',
+                  _error ?? '',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _error == null
-                        ? const Color(0xFF8FA3C4)
-                        : const Color(0xFFFCA5A5),
-                  ),
+                  style: const TextStyle(color: Color(0xFFFCA5A5)),
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
                     onPressed: _start, child: const Text('Grant & start')),
-                if (_gpsOff)
+                if (_needGps)
                   TextButton(
-                    onPressed: LocationService.openGpsSettings,
+                    onPressed: Geolocator.openLocationSettings,
                     child: const Text('Turn on GPS'),
                   ),
-                if (_needSettings || _error != null)
+                if (_needSettings)
                   TextButton(
-                    onPressed: LocationService.openAppSettingsPage,
-                    child: const Text('App settings'),
+                    onPressed: Geolocator.openAppSettings,
+                    child: const Text('Open settings'),
                   ),
               ],
             ],

@@ -21,10 +21,9 @@ Artifacts → `terrastep-debug-apk`. The workflow pins Flutter **3.27.4**
 > Debug build, so it is unsigned and larger than a release build. Fine for
 > testing; not for the Play Store.
 
-> ⚠️ **This build tracks only in the foreground.** The foreground service
-> (threshold 1.8) is not implemented yet, so tracking stops when you lock the
-> screen or background the app. Test with the screen on and the app open. The
-> real background battery test — the threshold 0.3 go/no-go — comes next.
+> **v0.1.4+5 starts a location foreground service.** A persistent
+> *Terrastep is tracking* notification must stay up with the screen off.
+> That is the 1.8 / 0.3 test: 20–30 min pocket, then copy the overlay.
 
 ---
 

@@ -2,15 +2,15 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** Walk 6 — **23 min pocket/prayer. Tracking died.** 12 GPS fixes, 0 steps. 1.8 needs a foreground service.
+**Latest:** **v0.1.4+5 APK** — foreground service built. Walk 6 proved the old APK dies in a pocket. Walk 7 scores 1.8.
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
-**Next according to the plan:** **build O11 (foreground service)**, then repeat the pocket test.
+**Next:** install `releases/terrastep-debug.apk`, confirm dump `v0.1.4+5` and a live *Terrastep is tracking* notification, then a 20–30 min pocket walk.
 
 | | |
 |---|---|
-| **Walk 6** | 22:59 elapsed, raw gps **12**, pedometer **0**, dwell 28 s, battery 37→37 %. |
-| **Meaning** | Screen-off without FGS = app frozen. Walk 5 was luck. |
-| **1.7** | Still ✅ (claim + persist). Uninstall of v0.1.3 reset local hexes — expected. |
+| **Walk 6** | 22:59 elapsed, raw gps **12**, pedometer **0**. FGS was missing. |
+| **v0.1.4+5** | Geolocator FGS + wake lock + notification permission + battery-exemption prompt. 1 Hz, no distance filter. |
+| **1.7** | Still ✅. **1.8** ⬜ until Walk 7. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -47,10 +47,11 @@ Also available from Actions (rebuilds on every relevant push): repo →
 | | |
 |---|---|
 | File | `releases/terrastep-debug.apk` |
+| Version | **v0.1.4+5** (dump first line) |
 | Size | 45 MB |
-| ABI | `arm64-v8a` (every phone we care about for this test) |
+| ABI | `arm64-v8a` |
 | Signed | Debug (not Play Store) |
-| Built | 2026-08-18, Flutter 3.27.4, locally, then committed |
+| Built | 2026-08-18, Flutter 3.27.4, locally |
 | Offline | Yes — no account, no server, no Supabase |
 
 ### What it does
@@ -73,21 +74,23 @@ Also available from Actions (rebuilds on every relevant push): repo →
 | Hex ids padded to 15 chars | `BigInt.toRadixString` drops leading zeros; h3-js does not (O9) |
 | MapController guarded until ready | First GPS fix used to crash if the map was not attached |
 
-### What we need from the walk
+### What we need from Walk 7 (pocket)
 
-Test with the **screen on and the app open**. This build has no foreground
-service (O11) — tracking stops when you lock the screen.
+1. Uninstall the old APK. Install this one. Grant **Location**, **Physical
+   activity**, **Notifications**, and **Unrestricted battery**.
+2. Confirm the overlay dump says `v0.1.4+5` and `fgs on`. A persistent
+   *Terrastep is tracking* notification must be in the shade.
+3. Phone in pocket, screen off, 20–30 min (prayer / a block is fine).
+4. Unlock, tap the overlay **copy** icon, paste.
 
-| Question | Why |
+| Question | Pass looks like |
 |---|---|
-| Did a hex fill after ~120 steps? | Core loop on real GPS |
-| `m/step` while walking | Server rejects outside 0.30–1.60 |
-| Typical `gps acc` | Routinely >35 m = accuracy gate too strict |
-| Rejected-fix counts | Tells us which filter to tune |
-| `pedometer` ok / EST. from dist | Hardware vs. fallback |
-| Battery % over 15–20 min, screen ON | Foreground drain (worst case) |
+| `raw gps` after 20 min | hundreds, not ~12 |
+| `last fix` | a few seconds ago, not 20 min ago |
+| pedometer | non-zero if you walked |
+| battery % | record start and end. Target **&lt;4 %/hr**. Stop-and-redesign if **&gt;6 %/hr** |
 
-Screenshot the overlay. That one picture answers 0.1, 0.2, 1.1–1.5 and 1.7.
+1.7 (claim + persist) is already done. This walk is **1.8 / 0.3**.
 
 ---
 
@@ -159,8 +162,8 @@ The only test that matters has not happened: a human walking a block with
 the screen on, then (later) a 30-minute pocket test with a foreground
 service.
 
-The referee is done. The board exists. We have not yet played a real game
-on it.
+The referee is done. The board exists. A real phone claimed a hex (1.7).
+Pocket survival (1.8) is the remaining Phase 1 gate.
 
 | | Status |
 |---|---|
@@ -169,8 +172,8 @@ on it.
 | Claim / contest / decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
 | Supabase deployment | ❌ Local Postgres only |
-| Flutter app | 🟡 Claims + persist on Android. No FGS, no iOS. |
-| Real GPS / steps / battery | 🟡 Screen-on claim proven. Pocket battery unmeasured. |
+| Flutter app | 🟡 Claims + persist + FGS on Android. No iOS. |
+| Real GPS / steps / battery | 🟡 Screen-on claim proven. Pocket battery is Walk 7. |
 | Store submission | ❌ Not started |
 
 ---
@@ -185,7 +188,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 |---|---|---|---|
 | 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | **On device** (flutter_map + OSM, not MapLibre — #21). |
 | 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | **On device.** Cell `89209a0aa73ffff`. Still unverified vs h3-js (O9). |
-| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **Failed without FGS.** Walk 6: 12 fixes / 0 steps in 23 min pocket. |
+| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **Code in v0.1.4+5.** Walk 6 failed without FGS. Walk 7 is the test. |
 
 ### PHASE 1 — Local Prototype *(2 / 8 done)*
 
@@ -198,7 +201,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | 1.5 | Step source | 🟡 | Pedometer matches HUD. Health Connect later. |
 | 1.6 | `SessionAccumulator` + unit tests | ✅ | 27/27. Armchair-claim exploit fixed (#17). |
 | 1.7 | Local claim + persist | ✅ | **Claim + force-quit × N, hex stayed blue.** SharedPreferences, not SQLite. |
-| 1.8 | Background survival, <4%/hr | ⬜ | **Next.** Needs O11 foreground service, then a pocket walk. |
+| 1.8 | Background survival, <4%/hr | ⬜ | **FGS shipped in v0.1.4+5.** Awaiting Walk 7. |
 
 ### PHASE 2 — Backend & Persistence *(4 / 9)*
 
@@ -299,7 +302,7 @@ Reproduce Dart: `cd packages/terrastep_core && dart pub get && dart test`
 
 **Not verified yet:** rate limiting (4.6), behavioural scoring (4.7),
 rollback (4.8), real Supabase Realtime, RLS under a genuine JWT, any
-latency target, and **anything on a real phone**.
+latency target, and **pocket battery (1.8 / Walk 7)**.
 
 ---
 
@@ -351,6 +354,7 @@ the app in their pocket). Do not start Phase 2 multiplayer until then.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-18 | **v0.1.4+5.** Geolocator FGS + wake lock + POST_NOTIFICATIONS + battery-exemption. 1 Hz, no distance filter (so a standing prayer test cannot look like a freeze). Dump header + pubspec bumped together. | O11, #31 |
 | 2026-08-18 | **Walk 6.** 23 min pocket/prayer. 12 GPS, 0 steps. 1.8 cannot pass without FGS. | O11 |
 | 2026-08-18 | **1.7 complete.** Claim + persist. Force-quit multiple times, hex stayed blue. | — |
 | 2026-08-18 | **Walk 4 / first claim.** v0.1.2+3, brother. Territory 1. 512/512 fixes. | — |

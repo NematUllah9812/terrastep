@@ -299,7 +299,15 @@ What we got: **12 GPS samples in 23 minutes**, **0 pedometer steps**, dwell 28 s
 
 **Threshold 1.8 / 0.3 cannot pass on this APK.** Android froze the app in the pocket. Walk 5 sometimes survived because the process was still warm and the screen was peeked. A real leave-the-house / pray / come-back cycle kills sensors.
 
-This is the evidence for O11, not a failed walk. Next build is a **foreground service** (persistent notification, `FOREGROUND_SERVICE_LOCATION`) so GPS + pedometer keep running with the screen off. Then repeat this exact test.
+This is the evidence for O11, not a failed walk. **v0.1.4+5** ships the
+foreground service. Repeat this exact test as **Walk 7**:
+
+1. Uninstall v0.1.3. Install `releases/terrastep-debug.apk`.
+2. Dump first line must say `v0.1.4+5`. Overlay `fgs` must say `on`.
+3. Shade must show *Terrastep is tracking*.
+4. Pocket, screen off, ~20–30 min. Unlock, copy overlay.
+5. Pass: `raw gps` in the hundreds, pedometer &gt; 0 if you walked,
+   `last fix` recent. Record battery start/end. Target &lt;4 %/hr.
 
 ---
 

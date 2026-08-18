@@ -48,6 +48,7 @@ bottom first, then *Open Items*. The numbered entries are the paper trail.
 | [28](#28--first-device-walk-got-no-gps-and-no-permission-dialog) | First walk: no GPS, no permission dialog | 🔴 |
 | [29](#29--500-m-walk-steps-ok-distance-0-map-frozen-off-wifi) | 500 m walk: steps ok, distance 0, map frozen off Wi‑Fi | 🔴 |
 | [30](#30--owned-hex-reclaimed-and-steps-leaked-into-the-next-cell) | Owned hex reclaimed; steps leaked into the next cell | 🔴 |
+| [31](#31--walk-6-screen-off-froze-gps-and-the-pedometer) | Walk 6: screen-off froze GPS and the pedometer | 🔴 |
 
 ---
 
@@ -920,6 +921,42 @@ if the timestamp belongs to current.
 
 ---
 
+### #31 🔴 Walk 6: screen-off froze GPS and the pedometer
+**Symptom** Fresh v0.1.3+4 install, phone in pocket, ~23 min prayer.
+Elapsed 22:59, raw gps **12**, pedometer **0**, dwell 28 s, battery
+37→37 %. If 1 Hz had stayed alive we would have ~1,380 fixes.
+
+**Cause** No foreground service. Manifest already declared
+`FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_LOCATION` but nothing
+started one. Android froze the Dart isolate. Walk 5 “survived”
+because the process was still warm and the screen was peeked.
+
+`flutter_foreground_task` 10 needs Flutter ≥3.38 (#22). We are pinned
+to 3.27.4.
+
+**Fix** (APK **v0.1.4+5**) Use geolocator’s own
+`ForegroundNotificationConfig` (no extra plugin):
+
+- `AndroidSettings` 1 Hz, `distanceFilter: 0`,
+  `LocationAccuracy.bestForNavigation`, wake lock, ongoing
+  notification *Terrastep is tracking*.
+- Do **not** retune to a 25 m filter. A standing prayer test would
+  look like another freeze.
+- Runtime `POST_NOTIFICATIONS` (Android 13+) so the shade entry is
+  visible; without it some OEMs then freeze the service.
+- `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` prompt — Pakistan OEM skins
+  otherwise kill the process in minutes.
+- Overlay dump bumped to `v0.1.4+5` and shows `fgs on/off`,
+  `gps src`, `last fix`, `raw gps`.
+- Client still `GameConfig(maxAccuracyM: 80)`. #30 reclaim + orphan
+  step fixes kept.
+
+**Prevention** A location app that must survive screen-off is not
+done until a pocket walk produces ~1 Hz. Walk 5 was luck. Walk 6 is
+the real test. Walk 7 scores it.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
@@ -936,7 +973,7 @@ Known problems not yet solved. Carry these forward.
 | O8 | APK still not compiled | 1.1 | **Resolved.** v0.1.1+2 in `releases/`. First walk (#28) showed GPS was silent. |
 | O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
 | O10 | Anti-drift filter untuned against real GPS | 4.2 | **Partial.** First walk never left a Wi‑Fi lock, so the anchor never fired. Re-tune after v0.1.2 gets a satellite lock. |
-| O11 | Foreground service not implemented | 1.8 | **Walk 6 confirmed.** 23 min pocket: 12 GPS, 0 steps. Next build. |
+| O11 | Foreground service not implemented | 1.8 | **Code in v0.1.4+5.** Awaiting Walk 7 (20–30 min pocket). |
 
 ---
 

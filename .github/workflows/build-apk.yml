@@ -5,8 +5,6 @@ name: Build Android APK
 # and unaffected by whatever machine we happen to be working on.
 #
 # TO GET THE APK ON YOUR PHONE:
-#   Easiest: repo -> releases/terrastep-debug.apk -> download -> tap.
-#   Or from this workflow:
 #   1. GitHub app or browser -> repo -> Actions tab
 #   2. Open the newest "Build Android APK" run
 #   3. Scroll to Artifacts -> tap "terrastep-debug-apk" -> downloads a .zip

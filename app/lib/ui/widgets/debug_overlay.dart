@@ -5,15 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:terrastep_core/domain/session_accumulator.dart';
 
+import '../../app_version.dart';
 import '../../services/location_service.dart';
 import '../../services/tracking_coordinator.dart';
 
-/// Live sensor readout.
-///
-/// This is the most important part of the first APK. The whole point of
-/// threshold 0.3 is to find out what the sensors actually do on real hardware,
-/// and that is unknowable without seeing the raw numbers. Screenshot this
-/// during a test walk — or tap the copy icon to dump the same numbers.
+/// Live sensor readout. Tap the copy icon — first line is the version check.
 class DebugOverlay extends StatefulWidget {
   final TrackingCoordinator tracker;
   const DebugOverlay({super.key, required this.tracker});
@@ -27,6 +23,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
   int? _batteryPct;
   BatteryState? _batteryState;
   Timer? _timer;
+  int _ticks = 0;
 
   TrackingCoordinator get tracker => widget.tracker;
 
@@ -34,11 +31,10 @@ class _DebugOverlayState extends State<DebugOverlay> {
   void initState() {
     super.initState();
     _pollBattery();
-    // 1 Hz so "waiting for GPS" and elapsed update even when the stream is
-    // silent — that was the only motion the first APK showed (#28).
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _ticks++;
+      if (_ticks % 20 == 0) _pollBattery();
       if (mounted) setState(() {});
-      if (DateTime.now().second % 20 == 0) _pollBattery();
     });
   }
 
@@ -57,9 +53,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
         _batteryPct = pct;
         _batteryState = state;
       });
-    } catch (_) {
-      // Some devices refuse battery reads; leave the field as —.
-    }
+    } catch (_) {}
   }
 
   String get _elapsed {
@@ -88,11 +82,29 @@ class _DebugOverlayState extends State<DebugOverlay> {
     return 'waiting…';
   }
 
+  String get _lastFixAge {
+    final at = tracker.lastFixAt;
+    if (at == null) return 'none';
+    final s = DateTime.now().difference(at).inSeconds;
+    if (s < 2) return 'now';
+    if (s < 60) return '${s}s ago';
+    return '${s ~/ 60}m ${s % 60}s ago';
+  }
+
+  String get _errorLabel {
+    final e = tracker.lastError ?? tracker.location.lastError;
+    if (e == null || e.isEmpty) return 'none';
+    return e;
+  }
+
+  bool get _weakLock =>
+      tracker.lastAccuracy != null && tracker.lastAccuracy! > 50;
+
   String _dump() {
     final v = tracker.currentVisit;
     final cfg = tracker.cfg;
     final buf = StringBuffer()
-      ..writeln('Terrastep debug  v0.1.3+4')
+      ..writeln('Terrastep debug  $kAppVersion')
       ..writeln('elapsed $_elapsed   battery $_batteryLabel')
       ..writeln('cell ${v?.cellId ?? '—'}')
       ..writeln('steps ${v?.steps ?? 0} / ${cfg.claimMinSteps}')
@@ -106,7 +118,10 @@ class _DebugOverlayState extends State<DebugOverlay> {
       ..writeln('raw gps ${tracker.rawFixes}')
       ..writeln('accepted ${tracker.fixesAccepted}')
       ..writeln('pedometer $_pedometerLabel')
-      ..writeln('error ${tracker.lastError ?? 'none'}')
+      ..writeln('error $_errorLabel')
+      ..writeln('fgs ${tracker.foregroundServiceOn ? 'on' : 'off'}')
+      ..writeln('gps src ${tracker.usingLocationManager ? 'chip' : 'fused'}')
+      ..writeln('last fix $_lastFixAge')
       ..writeln('motion ${tracker.motion.name}')
       ..writeln('territory ${tracker.claimed.length} hexes');
     if (tracker.rejections.isNotEmpty) {
@@ -168,9 +183,15 @@ class _DebugOverlayState extends State<DebugOverlay> {
                 ),
                 const SizedBox(width: 8),
                 _Pill(
+                  label: tracker.foregroundServiceOn ? 'fgs' : 'no-fgs',
+                  color: tracker.foregroundServiceOn
+                      ? const Color(0xFF22C55E)
+                      : const Color(0xFFEF4444),
+                ),
+                const SizedBox(width: 6),
+                _Pill(
                   label: tracker.motion.name,
                   color: switch (tracker.motion) {
-                    MotionState.acquiring => const Color(0xFFFBBF24),
                     MotionState.walking => const Color(0xFF22C55E),
                     MotionState.running => const Color(0xFF3B82F6),
                     MotionState.vehicle => const Color(0xFFEF4444),
@@ -179,8 +200,15 @@ class _DebugOverlayState extends State<DebugOverlay> {
                 ),
               ],
             ),
+            if (_weakLock) ...[
+              const SizedBox(height: 6),
+              const Text(
+                'WEAK LOCK — Wi-Fi/network, not GPS.',
+                style: TextStyle(
+                    color: Color(0xFFFBBF24), fontWeight: FontWeight.bold),
+              ),
+            ],
             const SizedBox(height: 6),
-
             _row('cell', v?.cellId ?? '—'),
             _row('steps', '${v?.steps ?? 0} / ${cfg.claimMinSteps}'),
             _row('distance',
@@ -189,48 +217,31 @@ class _DebugOverlayState extends State<DebugOverlay> {
             _row('fixes', '${v?.fixCount ?? 0} / ${cfg.claimMinFixes}'),
             _row('m/step', (v?.metresPerStep ?? 0).toStringAsFixed(2),
                 hint: 'server wants 0.30-1.60'),
-
-            if ((tracker.lastAccuracy ?? 0) > 50) ...[
-              const SizedBox(height: 6),
-              const Text(
-                'WEAK LOCK — this looks like Wi‑Fi/network, not GPS. '
-                'Settings → Location → High accuracy (GPS on). '
-                'Distance stays 0 until acc drops.',
-                style: TextStyle(
-                    fontSize: 10.5,
-                    color: Color(0xFFFBBF24),
-                    height: 1.35),
-              ),
-            ],
-
             const Divider(height: 14, color: Color(0xFF243352)),
-
             _row(
                 'gps acc',
                 tracker.lastAccuracy == null
-                    ? (tracker.rawFixes == 0 ? 'waiting for GPS…' : '—')
-                    : '${tracker.lastAccuracy!.toStringAsFixed(1)} m',
-                valueColor: tracker.lastAccuracy == null
-                    ? const Color(0xFFFBBF24)
-                    : null),
+                    ? '—'
+                    : '${tracker.lastAccuracy!.toStringAsFixed(1)} m'),
             _row('raw gps', '${tracker.rawFixes}'),
             _row('accepted', '${tracker.fixesAccepted}'),
+            _row('last fix', _lastFixAge),
             _row('pedometer', _pedometerLabel,
                 valueColor: tracker.estimatingSteps
                     ? const Color(0xFFFBBF24)
                     : null),
+            _row('fgs', tracker.foregroundServiceOn ? 'on' : 'off',
+                valueColor: tracker.foregroundServiceOn
+                    ? const Color(0xFF22C55E)
+                    : const Color(0xFFEF4444)),
+            _row('gps src', tracker.usingLocationManager ? 'chip' : 'fused'),
             _row('territory', '${tracker.claimed.length} hexes'),
             _row('battery', _batteryLabel),
             _row('elapsed', _elapsed),
-            if (tracker.lastError != null)
-              _row('error', tracker.lastError!,
-                  valueColor: const Color(0xFFFCA5A5)),
-            if (tracker.indexer.loadError != null)
-              _row('h3', tracker.indexer.loadError!,
-                  valueColor: const Color(0xFFFCA5A5)),
-            if (tracker.location.usingLocationManager)
-              _row('provider', 'LocationManager (fallback)'),
-
+            _row('error', _errorLabel,
+                valueColor: _errorLabel == 'none'
+                    ? null
+                    : const Color(0xFFFCA5A5)),
             if (rej.isNotEmpty) ...[
               const Divider(height: 14, color: Color(0xFF243352)),
               const Text('REJECTED FIXES',

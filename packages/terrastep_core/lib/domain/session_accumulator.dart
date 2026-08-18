@@ -219,10 +219,10 @@ class SessionAccumulator {
         return;
       }
     }
-    // Orphan steps: the matching visit was removed (just claimed) or the
-    // batch arrived before any fix. Only attach to the *current* visit if
-    // the timestamp is at/after that visit started — otherwise they are
-    // leftovers from the previous hex (walk 5, ISSUES_LOG #30).
+    // No window matched. After markSubmitted deletes a claimed visit, delayed
+    // pedometer batches from that visit used to dump onto the *current* cell
+    // and inflate the next hex (#30). Only attach if the timestamp belongs
+    // to the current visit.
     final cur = _currentCell == null ? null : _visits[_currentCell];
     if (cur != null && !at.isBefore(cur.windowStart)) {
       cur.steps += steps;

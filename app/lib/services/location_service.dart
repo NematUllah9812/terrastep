@@ -1,29 +1,30 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:terrastep_core/domain/models/geo.dart';
 
-enum MotionState { acquiring, stationary, walking, running, vehicle }
-
-/// Streams GPS fixes. The first test APK used a 25 m distance filter from
-/// the first second (ISSUES_LOG #28). On many Android phones
-/// `getPositionStream(distanceFilter: 25)` never emits an *initial* fix, so
-/// the overlay sat at zeros except battery and elapsed time.
+/// Motion state is **display only** on this build.
 ///
-/// This build:
-/// - asks for the runtime permission via permission_handler (OEM dialogs)
-/// - opens location-settings if GPS is off
-/// - seeds with last-known + getCurrentPosition
-/// - streams at 1 Hz with distanceFilter 0 until we have a lock
-/// - falls back to the platform LocationManager if Fused Location is silent
+/// Walks 1–3 taught us that a distanceFilter from t=0 silences the first
+/// lock (#28). Walk 6 is a pocket/prayer test — mostly standing — so
+/// retuning to a 25 m filter would look exactly like “tracking died”.
+/// Keep 1 Hz, `distanceFilter: 0` until threshold 1.8 is measured.
+enum MotionState { stationary, walking, running, vehicle }
+
+/// Streams GPS fixes at 1 Hz and holds an Android foreground service so
+/// the Dart isolate (GPS + pedometer) survives screen-off.
+///
+/// FGS is geolocator’s own `ForegroundNotificationConfig` — no extra
+/// plugin. `flutter_foreground_task` 10 needs Flutter ≥3.38 (#22).
 class LocationService {
   final _controller = StreamController<GeoFix>.broadcast();
   StreamSubscription<Position>? _sub;
-  Timer? _fallbackTimer;
+  Timer? _watchdog;
+  DateTime? _startedAt;
 
-  MotionState _state = MotionState.acquiring;
+  MotionState _state = MotionState.stationary;
   MotionState get state => _state;
 
   final _stateController = StreamController<MotionState>.broadcast();
@@ -36,113 +37,84 @@ class LocationService {
   int rawFixes = 0;
   String? lastError;
   bool usingLocationManager = false;
-  double? _lastAccuracy;
+  bool get foregroundServiceOn =>
+      defaultTargetPlatform == TargetPlatform.android && _sub != null;
+  double? lastAccuracy;
+
   bool get isTracking => _sub != null;
-  bool get wifiOnlyLock =>
-      _lastAccuracy != null && _lastAccuracy! > 50;
 
-  static Future<bool> isGpsOn() => Geolocator.isLocationServiceEnabled();
+  static const _notification = ForegroundNotificationConfig(
+    notificationTitle: 'Terrastep is tracking',
+    notificationText: 'GPS and steps stay on with the screen off.',
+    notificationChannelName: 'Terrastep tracking',
+    enableWakeLock: true,
+    setOngoing: true,
+    color: Color(0xFF3B82F6),
+  );
 
-  /// Ask for while-in-use location. Returns a short machine code:
-  /// `ok`, `gps_off`, `denied`, `permanent`.
-  static Future<String> requestForeground() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return 'gps_off';
-
-    // permission_handler is more reliable on Xiaomi / Infinix / Oppo / Vivo
-    // than geolocator's own request, which is what the first APK used.
-    var status = await Permission.locationWhenInUse.status;
-    if (!status.isGranted) {
-      status = await Permission.locationWhenInUse.request();
+  static Future<LocationPermission> requestForeground() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return LocationPermission.denied;
     }
-    if (!status.isGranted) {
-      // Some OEMs only honour the combined `location` permission.
-      final alt = await Permission.location.request();
-      if (!alt.isGranted) {
-        return (status.isPermanentlyDenied || alt.isPermanentlyDenied)
-            ? 'permanent'
-            : 'denied';
-      }
+    var p = await Geolocator.checkPermission();
+    if (p == LocationPermission.denied) {
+      p = await Geolocator.requestPermission();
     }
-
-    // Keep geolocator in sync so getPositionStream doesn't 403.
-    final g = await Geolocator.checkPermission();
-    if (g == LocationPermission.denied) {
-      await Geolocator.requestPermission();
-    }
-    return 'ok';
+    return p;
   }
 
-  static Future<void> openGpsSettings() => Geolocator.openLocationSettings();
-  static Future<void> openAppSettingsPage() => openAppSettings();
+  static Future<bool> hasPermission() async {
+    final p = await Geolocator.checkPermission();
+    return p == LocationPermission.always ||
+        p == LocationPermission.whileInUse;
+  }
 
   Future<void> start() async {
+    if (_sub != null) return;
+    _startedAt = DateTime.now();
     lastError = null;
     await _seed();
-    _listenWith(forceLocationManager: false);
-
-    // Two reasons to drop Fused Location and talk to the GPS chip:
-    // 1. no fix at all (v0.1.0 / #28)
-    // 2. we only have a Wi‑Fi lock — accuracy stays >50 m (field report #29)
-    _fallbackTimer?.cancel();
-    _fallbackTimer = Timer(const Duration(seconds: 12), () {
-      if (usingLocationManager) return;
-      if (rawFixes == 0 || _lastAccuracy == null || _lastAccuracy! > 50) {
-        usingLocationManager = true;
-        lastError = rawFixes == 0
-            ? 'no fused fix in 12s — trying GPS chip'
-            : 'wifi/network lock (${_lastAccuracy!.toStringAsFixed(0)} m) — trying GPS chip';
-        _listenWith(forceLocationManager: true);
-        _seed();
-      }
-    });
+    _listen(forceLm: false);
+    _armWatchdog();
   }
 
-  /// Last-known + a blocking current-position. Either one unsticks a stream
-  /// that is waiting for 25 m of movement that will never come.
   Future<void> _seed() async {
     try {
       final last = await Geolocator.getLastKnownPosition();
       if (last != null) _onPosition(last);
     } catch (e) {
-      lastError = 'lastKnown: $e';
+      lastError = e.toString();
     }
     try {
-      final now = await Geolocator.getCurrentPosition(
-        locationSettings: _androidSettings(
-          forceLocationManager: usingLocationManager,
-          filter: 0,
+      final cur = await Geolocator.getCurrentPosition(
+        locationSettings: AndroidSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          timeLimit: const Duration(seconds: 8),
         ),
-      ).timeout(const Duration(seconds: 20));
-      _onPosition(now);
+      );
+      _onPosition(cur);
     } catch (e) {
-      lastError = 'current: $e';
+      lastError = e.toString();
     }
   }
 
-  void _listenWith({required bool forceLocationManager}) {
+  void _listen({required bool forceLm}) {
     _sub?.cancel();
-    usingLocationManager = forceLocationManager;
-    _sub = Geolocator.getPositionStream(
-      locationSettings: _androidSettings(
-        forceLocationManager: forceLocationManager,
-        filter: 0,
-      ),
-    ).listen(_onPosition, onError: (Object e) {
-      lastError = 'stream: $e';
-      _stateController.add(_state);
+    usingLocationManager = forceLm;
+    _sub = Geolocator.getPositionStream(locationSettings: _settings(forceLm))
+        .listen(_onPosition, onError: (Object e) {
+      lastError = e.toString();
     });
   }
 
-  LocationSettings _androidSettings({
-    required bool forceLocationManager,
-    required int filter,
-  }) {
+  LocationSettings _settings(bool forceLm) {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: filter,
+        distanceFilter: 0,
         intervalDuration: const Duration(seconds: 1),
-        forceLocationManager: forceLocationManager,
+        forceLocationManager: forceLm,
+        foregroundNotificationConfig: _notification,
       );
     }
     return const LocationSettings(
@@ -151,40 +123,58 @@ class LocationService {
     );
   }
 
+  void _armWatchdog() {
+    _watchdog?.cancel();
+    _watchdog = Timer.periodic(const Duration(seconds: 2), (_) {
+      final start = _startedAt;
+      if (start == null || usingLocationManager) {
+        _watchdog?.cancel();
+        return;
+      }
+      final elapsed = DateTime.now().difference(start);
+
+      if (rawFixes == 0 && elapsed >= const Duration(seconds: 8)) {
+        lastError = 'fused silent 8s — switching to GPS chip';
+        _listen(forceLm: true);
+        return;
+      }
+
+      if (lastAccuracy != null &&
+          lastAccuracy! > 50 &&
+          elapsed >= const Duration(seconds: 12)) {
+        lastError =
+            'acc ${lastAccuracy!.toStringAsFixed(0)}m for 12s — switching to GPS chip';
+        _listen(forceLm: true);
+        return;
+      }
+
+      if (lastAccuracy != null && lastAccuracy! <= 50 && rawFixes >= 5) {
+        _watchdog?.cancel();
+      }
+    });
+  }
+
   void _onPosition(Position p) {
     rawFixes++;
-    _lastAccuracy = p.accuracy;
+    lastAccuracy = p.accuracy;
     lastError = null;
-    final ts = p.timestamp;
-    // Some Android builds report the epoch or a future clock; clamp to now
-    // so a bad timestamp cannot clock-skew-reject every fix.
-    final at = (ts.year < 2020 || ts.isAfter(DateTime.now().add(const Duration(minutes: 5))))
-        ? DateTime.now()
-        : ts;
 
     final fix = GeoFix(
       lat: p.latitude,
       lng: p.longitude,
       accuracy: p.accuracy,
       speed: p.speed,
-      at: at,
+      at: p.timestamp,
       isMocked: p.isMocked,
     );
 
-    _retune(p.speed);
+    _noteMotion(p.speed);
     if (!_controller.isClosed) _controller.add(fix);
   }
 
-  void _retune(double speed) {
+  void _noteMotion(double speed) {
     _recentSpeeds.add(speed < 0 ? 0 : speed);
     if (_recentSpeeds.length > 5) _recentSpeeds.removeAt(0);
-
-    // Stay in `acquiring` until we have a handful of raw fixes so we never
-    // slap a 25 m filter on before the first lock.
-    if (rawFixes < 5) {
-      _setState(MotionState.acquiring);
-      return;
-    }
     if (_recentSpeeds.length < 3) return;
 
     final avg = _recentSpeeds.reduce((a, b) => a + b) / _recentSpeeds.length;
@@ -194,20 +184,15 @@ class LocationService {
       >= 0.4 => MotionState.walking,
       _ => MotionState.stationary,
     };
-    _setState(next);
-  }
-
-  void _setState(MotionState next) {
-    if (next == _state) return;
-    _state = next;
-    _stateController.add(next);
-    // Do NOT restart the stream with a distance filter. That was #28.
-    // Battery-aware retuning comes back with the foreground service (O11).
+    if (next != _state) {
+      _state = next;
+      _stateController.add(next);
+    }
   }
 
   Future<void> stop() async {
-    _fallbackTimer?.cancel();
-    _fallbackTimer = null;
+    _watchdog?.cancel();
+    _watchdog = null;
     await _sub?.cancel();
     _sub = null;
   }

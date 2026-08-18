@@ -62,12 +62,15 @@ class TrackingCoordinator extends ChangeNotifier {
 
   // --- debug counters, shown in the overlay -------------------------------
   int fixesAccepted = 0;
-  int rawFixes = 0;
   final Map<FixRejection, int> rejections = {};
   DateTime? lastFixAt;
   double? lastAccuracy;
-  MotionState motion = MotionState.acquiring;
+  MotionState motion = MotionState.stationary;
   String? lastError;
+
+  int get rawFixes => location.rawFixes;
+  bool get foregroundServiceOn => location.foregroundServiceOn;
+  bool get usingLocationManager => location.usingLocationManager;
 
   StreamSubscription<void>? _locSub;
   StreamSubscription<void>? _stepSub;
@@ -88,9 +91,7 @@ class TrackingCoordinator extends ChangeNotifier {
     required this.indexer,
     required this.location,
     required this.steps,
-    // 80 m: Abbottabad walk 2026-08-18 showed a *good* lock at 42–47 m
-    // and the 35 m server default rejected almost every fix (#29).
-    this.cfg = const GameConfig(maxAccuracyM: 80),
+    this.cfg = const GameConfig(),
   }) {
     accumulator = SessionAccumulator(
       cfg: cfg,
@@ -107,11 +108,10 @@ class TrackingCoordinator extends ChangeNotifier {
     sessionStartedAt = DateTime.now();
 
     _locSub = location.fixes.listen((fix) {
-      rawFixes = location.rawFixes;
-      lastError = location.lastError;
-      _position = GeoPoint(fix.lat, fix.lng);
       lastFixAt = fix.at;
       lastAccuracy = fix.accuracy;
+      lastError = location.lastError;
+      _position = GeoPoint(fix.lat, fix.lng);
       try {
         final cell = accumulator.addFix(fix);
         if (cell != null) {
@@ -120,11 +120,8 @@ class TrackingCoordinator extends ChangeNotifier {
           _checkClaims();
         }
       } catch (e) {
-        lastError = 'fix: $e';
+        lastError = e.toString();
       }
-      notifyListeners();
-    }, onError: (Object e) {
-      lastError = 'gps: $e';
       notifyListeners();
     });
 
@@ -136,16 +133,11 @@ class TrackingCoordinator extends ChangeNotifier {
 
     _motionSub = location.stateChanges.listen((s) {
       motion = s;
-      lastError = location.lastError;
-      rawFixes = location.rawFixes;
       notifyListeners();
     });
 
     await location.start();
     await steps.start();
-    rawFixes = location.rawFixes;
-    lastError = location.lastError;
-    notifyListeners();
   }
 
   /// Devices without a step counter (or where ACTIVITY_RECOGNITION was
@@ -163,23 +155,18 @@ class TrackingCoordinator extends ChangeNotifier {
   }
 
   /// Claim any visit that now meets every floor.
-  ///
-  /// An already-owned cell is *reinforced* (effort added, no snackbar).
-  /// Walk 5 showed the same hex celebrating three times because
-  /// `markSubmitted` wiped the visit and the next 120 steps re-claimed it
-  /// (#30). Phase 2 will send the reinforce through `claim_cells` instead.
   void _checkClaims() {
     final ready = accumulator.readyToSubmit();
     if (ready.isEmpty) return;
 
     for (final v in ready) {
       final effort = cfg.computeEffort(v.steps, v.distanceM, v.dwellS);
-      final already = _claimed[v.cellId];
-      if (already != null) {
+      final existing = _claimed[v.cellId];
+      if (existing != null) {
         _claimed[v.cellId] = ClaimedCell(
           cellId: v.cellId,
-          claimedAt: already.claimedAt,
-          effort: already.effort + effort,
+          claimedAt: existing.claimedAt,
+          effort: existing.effort + effort,
         );
       } else {
         _claimed[v.cellId] = ClaimedCell(
@@ -190,6 +177,7 @@ class TrackingCoordinator extends ChangeNotifier {
         onCellClaimed?.call(v.cellId);
       }
     }
+    // Phase 2: enqueue to the outbox here instead of dropping.
     accumulator.markSubmitted(ready);
     _saveClaimed();
   }
