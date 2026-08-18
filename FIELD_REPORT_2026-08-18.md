@@ -206,3 +206,68 @@ Proof it is the old build, not “cellular is broken”:
 Battery: ~1 % / 7 min screen-on. Same story as walks 1–2.
 
 **Next is not another walk on this APK.** Uninstall it. Install **v0.1.2+3** from `releases/terrastep-debug.apk`. Confirm the dump header says `v0.1.2+3` before walking. Then one straight block.
+
+---
+
+## Walk 4 — first claim (v0.1.2+3, brother walking)
+
+**Build:** `v0.1.2+3` (dump header confirms the new APK).  
+**Who:** tester’s brother.  
+**Result:** **territory 1 hex.** Hex `89209a0aa73ffff` filled blue.
+
+Dump (after the claim — counters are the *next* visit in the same hex):
+
+```
+Terrastep debug  v0.1.2+3
+elapsed 09:16   battery 59%
+cell 89209a0aa73ffff
+steps 99 / 120
+distance 39.4 m / 80
+dwell 21 s / 90
+fixes 41 / 5
+m/step 0.40
+gps acc 3.4 m
+raw gps 512
+accepted 512
+pedometer ok (904)
+error none
+motion stationary
+territory 1 hexes
+```
+
+Screenshot ~09:58: steps 110, dist 39.4, dwell 54, fixes 51, acc 24.5 m, raw/accepted 522, pedometer 915, **territory 1**, hex drawn blue. No rejected-fix section.
+
+### What this proves
+
+| Signal | Walk 3 (old APK) | Walk 4 (v0.1.2) |
+|---|---|---|
+| Dump version | v0.1.0+1 | **v0.1.2+3** |
+| Acc gate | 35 m | **80 m** |
+| raw / accepted | ~4 accepted, 15 rejects | **512 / 512** (every fix kept) |
+| Best acc | 22–32 m, then 36–87 rejected | **3.4 m** (then 24.5 m) |
+| Distance | 0.0 | **claimed, then 39.4 m into the next visit** |
+| m/step | 0.00 | **0.36–0.40** (inside 0.30–1.60) |
+| Hexes | 0 | **1** |
+
+`markSubmitted` clears the visit that paid for the claim, so the HUD after a fill is a *fresh* visit. That is why steps show 99/110 after a successful claim while the pedometer is at 904/915 — the other ~800 steps were in the visit that filled the hex.
+
+512 accepts in ~9 min ≈ 1 Hz. The 1 Hz unfiltered stream (#28) is doing what it should. Zero `poor acc` on this dump: the 80 m gate plus a real GNSS lock.
+
+Battery 59 % at 09:16 (screenshot 58 % at 09:58). Screen-on, same order as before.
+
+### Not yet proven
+
+- **1.7 persist:** force-quit, reopen, hex still blue.
+- **1.8 / 0.3 pocket battery:** needs the foreground service.
+- Claim in a *second* hex (walk out of `89209a0aa73ffff`).
+
+---
+
+## Running score
+
+| Walk | APK | Dist | Claim |
+|---|---|---|---|
+| 1 | 0.1.0 | 0 (Wi‑Fi lock) | no |
+| 2 | 0.1.0 | 64.1 / 80 | no (16 m short) |
+| 3 | 0.1.0 | 0 (35 m gate on cellular) | no |
+| **4** | **0.1.2+3** | claimed, then 39.4 into next | **yes** |

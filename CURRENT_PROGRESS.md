@@ -170,8 +170,8 @@ on it.
 | Claim / contest / decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
 | Supabase deployment | ❌ Local Postgres only |
-| Flutter app | 🟡 Compiles; APK in `releases/` |
-| Real GPS / steps / battery | 🟡 Walk 2: 64/80 m. Walk 3: still v0.1.0, dist 0 |
+| Flutter app | 🟡 Claims on device; persist untested |
+| Real GPS / steps / battery | 🟡 Walk 4: claim + 3.4 m lock. Pocket test not done |
 | Store submission | ❌ Not started |
 
 ---
@@ -332,9 +332,8 @@ latency target, and **anything on a real phone**.
 
 **Do these in this order. Nothing else first.**
 
-1. **Uninstall Terrastep. Install `releases/terrastep-debug.apk` (v0.1.2+3).**
-   Open it and copy the overlay — the first line must say `v0.1.2+3`.
-   Then one straight block until metres ≥ 80.
+1. **Force-quit Terrastep, reopen.** If the hex is still blue, 1.7 persist is done.
+   Copy the overlay either way.
 2. **Foreground service (O11)** so the real 0.3 / 1.8 pocket test can run.
 3. **Deploy to a real Supabase project** (threshold 2.1, properly). ~1 hour.
 4. **Clear the four test-debt items.** ~4 hours.
