@@ -486,6 +486,76 @@ tests now pin this: one asserts all four queued batches are held, the other that
 
 ---
 
+### #20 🟢 Adding Flutter would have made the logic tests need an emulator
+**Symptom** Anticipated, not hit. Before writing the Android app, everything
+lived in one package (`app/`) whose `pubspec.yaml` had the Flutter dependencies
+commented out with a note saying *"uncomment at threshold 1.1"*.
+
+**Cause** Following that note would have broken the test suite. The moment
+`flutter: sdk: flutter` is added to a package:
+
+- `dart test` no longer works — it becomes `flutter test`
+- Running it needs the full Flutter SDK, not just Dart
+- CI needs `subosito/flutter-action` instead of `setup-dart`, and a much
+  heavier runner
+
+The 43 logic tests — including the one that caught the GPS-drift exploit
+(#17) — would have gone from *"runs anywhere in 2 seconds"* to *"needs a
+1.5 GB SDK"*. That is exactly the kind of friction that leads to tests being
+skipped.
+
+**Fix** Split into two packages before adding Flutter:
+
+```
+packages/terrastep_core/   pure Dart. claim/contest/decay logic. 43 tests.
+app/                       Flutter. sensors, map, UI. depends on core by path.
+```
+
+`app/pubspec.yaml` references it as a path dependency:
+```yaml
+terrastep_core:
+  path: ../packages/terrastep_core
+```
+
+**Why this works structurally, not just tidily.** `SessionAccumulator` already
+depended on the `CellIndexer` *interface* rather than on H3 (that seam existed
+from the start). The real `H3Indexer` now lives in `app/lib/services/` and
+implements it. So the native FFI plugin is on the Flutter side of the boundary
+while all the logic that needs testing stays on the pure side.
+
+**Prevention** The rule is written in `packages/terrastep_core/pubspec.yaml`,
+`app/README.md` and the core README: **never import `package:flutter` into
+`terrastep_core`.** Previously this was discipline; now the package boundary
+enforces it, and CI would fail loudly since the `client` job runs `dart test`,
+not `flutter test`.
+
+---
+
+### #21 🟢 MapLibre would have complicated the CI APK build
+**Symptom** Anticipated. `03_CLIENT_ARCHITECTURE.md` specifies `maplibre_gl`.
+
+**Cause** `maplibre_gl` wraps the native MapLibre SDK via platform views. That
+means an NDK build step, larger APK, longer CI times, and a class of
+Gradle/AGP version conflicts that are painful to debug remotely — with no
+device here to reproduce them on.
+
+**Fix** Used `flutter_map` for the first build instead: pure-Dart rendering over
+OSM raster tiles. No native build step, so the CI APK build stays simple and
+fast. It draws the H3 polygons via `PolygonLayer` perfectly well at the scale
+we need (2 rings = 19 hexes).
+
+**Trade-off, honestly stated.** `flutter_map` with raster tiles is slower than
+vector rendering at high zoom and with hundreds of polygons. If Phase 3 shows
+frame drops with a dense claimed map, revisit MapLibre then — on a machine that
+can build and test it. For answering *"does a hex fill when I walk?"* and
+*"what does this cost in battery?"*, raster tiles are fine.
+
+**Prevention** Prefer the dependency that keeps the feedback loop working.
+A technically superior library that cannot be built or tested in the current
+environment is worth less than an adequate one that ships today.
+
+---
+
 ## Open Items
 
 Known problems not yet solved. Carry these forward.
@@ -498,7 +568,11 @@ Known problems not yet solved. Carry these forward.
 | O4 | `score_suspicion()` written, never deployed or run | 4.7 | Needs a synthetic bot profile |
 | O5 | `admin_rollback_user()` untested | 4.8 | Needs a reassignment fixture |
 | O6 | RLS hostile test not written | 2.4 | Needs a real JWT — can't be shimmed |
-| O7 | Background battery drain unmeasured | 0.3 | **Highest project risk** |
+| O7 | Background battery drain unmeasured | 0.3 | **Highest project risk — awaiting device test** |
+| O8 | APK has never been compiled | 1.1 | No Flutter SDK here. First CI run may fail on a dependency or plugin Gradle config; fix from the log. |
+| O9 | `H3Indexer` unverified against `h3-js` | 1.3 | Cell ids must match the server's. Compare a known coordinate before trusting claims. |
+| O10 | Anti-drift filter untuned against real GPS | 4.2 | Tuned on synthetic jitter. Real GPS may need a different `_anchorFactor`. |
+| O11 | Foreground service not implemented | 1.8 | Tracking currently stops when the app is backgrounded. Needed for the real battery test. |
 
 ---
 

@@ -37,7 +37,18 @@ no account, no server.
 | `pedometer` ok or NO SENSOR | Hardware varies |
 | **Battery % over 30 min, screen off** | **Threshold 0.3 go/no-go. Target <4%/hr** |
 
-If battery is worse than ~6%/hr we redesign sampling before writing more code.
+⚠️ **Important caveat on the battery test.** This build tracks only while the
+app is **in the foreground**. The foreground service (threshold 1.8, open item
+O11) is not implemented yet, so tracking stops when you background the app or
+lock the screen.
+
+So this first APK measures **foreground drain with the screen on**, which is the
+*worst case* and not the number threshold 0.3 actually needs. It is still worth
+measuring — if foreground drain is already terrible, background will be too —
+but the real go/no-go test needs the foreground service, which comes next.
+
+**For this round, test with the screen on and the app open.** Walk a block,
+watch a hex fill, note the battery drop over ~15-20 minutes.
 
 ---
 

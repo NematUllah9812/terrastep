@@ -24,6 +24,11 @@ workflow**.
 > Debug build, so it is unsigned and larger than a release build. Fine for
 > testing; not for the Play Store.
 
+> ⚠️ **This build tracks only in the foreground.** The foreground service
+> (threshold 1.8) is not implemented yet, so tracking stops when you lock the
+> screen or background the app. Test with the screen on and the app open. The
+> real background battery test — the threshold 0.3 go/no-go — comes next.
+
 ---
 
 ## What this first build does
@@ -53,7 +58,7 @@ Screenshot the debug overlay during a walk, and note:
 | `gps acc` typical value | If routinely >35 m, the accuracy gate is too strict |
 | Rejected-fix counts | Non-zero `poor acc` or `teleport` means filter tuning |
 | `pedometer` says ok or NO SENSOR | Some devices lack a step counter |
-| **Battery % over 30 min, screen off** | **Threshold 0.3 go/no-go. Target <4%/hr** |
+| **Battery % over 15-20 min, screen ON** | Foreground drain (see caveat below) |
 
 ---
 
