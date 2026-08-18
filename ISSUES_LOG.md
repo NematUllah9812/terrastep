@@ -47,6 +47,7 @@ bottom first, then *Open Items*. The numbered entries are the paper trail.
 | [27](#27--the-apk-was-built-but-not-in-the-repo) | APK was built but gitignored | 🟡 |
 | [28](#28--first-device-walk-got-no-gps-and-no-permission-dialog) | First walk: no GPS, no permission dialog | 🔴 |
 | [29](#29--500-m-walk-steps-ok-distance-0-map-frozen-off-wifi) | 500 m walk: steps ok, distance 0, map frozen off Wi‑Fi | 🔴 |
+| [30](#30--owned-hex-reclaimed-and-steps-leaked-into-the-next-cell) | Owned hex reclaimed; steps leaked into the next cell | 🔴 |
 
 ---
 
@@ -880,6 +881,42 @@ Only 2 fixes accepted, 23 s apart. Battery ~2 % / 12 min screen-on.
 outdoor walk falsified it. Tune gates from a real dump, not from
 the spec. And a “we got *a* fix” fallback is not enough — a stale
 network lock is worse than silence.
+
+---
+
+### #30 🔴 Owned hex reclaimed; steps leaked into the next cell
+**Symptom** Walk 5 (pocket, v0.1.2+3). Tester left home, claimed new
+hexes, came back. Two reports:
+
+1. The same hex could be claimed **again and again** (snackbar three
+   times on one cell).
+2. When the current hex changed, the HUD still showed effort / steps
+   from the previous one (e.g. a new cell opening at 143 steps / 90 m
+   with only 18 s of dwell).
+
+**Cause**
+
+1. After a claim, `markSubmitted` **deletes** the visit. The next
+   120 steps + 80 m in that cell create a fresh visit that
+   `readyToSubmit` treats as a first claim. `onCellClaimed` fires
+   again. Territory count does not rise (same map key) but the
+   celebration does.
+2. Delayed pedometer batches are stamped with the time they *happened*,
+   not the time they arrive. After the old visit is deleted, those
+   batches match no window and the fallback did
+   `_visits[currentCell].steps += n` — dumping the previous hex’s
+   steps onto the new one.
+
+**Fix** (v0.1.3+4)
+- Already-owned cells **reinforce** (effort added, no snackbar).
+- Orphan steps are attached to the current visit only if their
+  timestamp is at/after that visit’s `windowStart`. Otherwise dropped.
+- Regression test in `session_accumulator_test.dart`.
+
+**Prevention** `markSubmitted` is a *server* idea (the outbox owns the
+row). Locally, ownership is a set. Claiming must consult that set
+before celebrating. And a fallback “put it on current” is only safe
+if the timestamp belongs to current.
 
 ---
 

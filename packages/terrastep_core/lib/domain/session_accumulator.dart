@@ -219,9 +219,14 @@ class SessionAccumulator {
         return;
       }
     }
-    // No window matched (e.g. first steps before the first fix): give them to
-    // the current cell if there is one, else drop them.
-    if (_currentCell != null) _visits[_currentCell]!.steps += steps;
+    // Orphan steps: the matching visit was removed (just claimed) or the
+    // batch arrived before any fix. Only attach to the *current* visit if
+    // the timestamp is at/after that visit started — otherwise they are
+    // leftovers from the previous hex (walk 5, ISSUES_LOG #30).
+    final cur = _currentCell == null ? null : _visits[_currentCell];
+    if (cur != null && !at.isBefore(cur.windowStart)) {
+      cur.steps += steps;
+    }
   }
 
   /// True when a visit meets every claim floor the server enforces.

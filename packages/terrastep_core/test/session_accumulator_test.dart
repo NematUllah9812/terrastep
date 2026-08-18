@@ -262,6 +262,28 @@ void main() {
       expect(firstCell.steps, equals(100));
     });
 
+    test('orphan steps from a claimed visit do not inflate the next hex', () {
+      final start = DateTime.utc(2026, 8, 18, 9, 0, 0);
+      acc.addFix(GeoFix(
+          lat: 34.1688, lng: 73.2215, accuracy: 8, at: start));
+      acc.addSteps(200, start.add(const Duration(seconds: 1)));
+      expect(acc.visits.values.first.steps, equals(200));
+
+      // Claim wipes the visit (markSubmitted). Walk into a new cell.
+      acc.markSubmitted(acc.visits.values.toList());
+      acc.addFix(GeoFix(
+        lat: 34.1800,
+        lng: 73.2215,
+        accuracy: 8,
+        at: start.add(const Duration(minutes: 2)),
+      ));
+
+      // Delayed pedometer batch stamped during the *old* visit.
+      acc.addSteps(200, start.add(const Duration(seconds: 2)));
+      expect(acc.currentVisit!.steps, equals(0),
+          reason: 'late steps from the previous hex must not land on the new one');
+    });
+
     test('zero or negative step deltas are ignored', () {
       acc.addFix(GeoFix(
           lat: 34.1688, lng: 73.2215, accuracy: 8, at: DateTime.utc(2026, 8, 18, 9)));

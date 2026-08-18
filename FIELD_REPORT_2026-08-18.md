@@ -276,3 +276,36 @@ not SQLite — good enough for Phase 1.
 | 2 | 0.1.0 | 64.1 / 80 | no (16 m short) |
 | 3 | 0.1.0 | 0 (35 m gate on cellular) | no |
 | **4** | **0.1.2+3** | claimed, then 39.4 into next | **yes** |
+| **5** | **0.1.2+3** | 3 hexes, screen mostly off | **yes + 2 more** |
+
+---
+
+## Walk 5 — pocket / screen-off, multi-hex (same evening)
+
+**Build:** v0.1.2+3 (raw gps row present).  
+**Screen:** mostly off, phone in pocket. Tester stood still in between.  
+**Started** with territory 1 (persisted home hex). **Ended** with **3 hexes**.
+
+| Time | Elapsed | Cell | Steps | Dist | Dwell | Fixes | Acc | raw/acc | Pedo | Terr | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 17:12 | 00:51 | `…aa73ffff` home | 19 | 0.0 | 44 | 14 | 23.2 | 14/14 | 19 | 1 | Standing. Dist 0. Map shows Dhamtour. |
+| 17:23 | 11:40 | `…aa0fffff` **new** | 143 | **89.7** | 18 | 18 | 7.9 | 69/67 | 483 | 1 | Stadium Rd. m/step **0.63**. 1 poor + 1 teleport. Not claimed (dwell 18). |
+| 17:27 | 16:10 | `…aa77ffff` **new** | 139 | **109.8** | 35 | 74 | 3.0 | 322/320 | 975 | **2** | Garipana Rd. m/step **0.79**. |
+| 17:32 | 21:16 | `…aa73ffff` home | 61 | 48.4 | 17 | 32 | 3.6 | 454/451 | 1536 | **3** | Back at Murree Rd. |
+
+Battery 47 % → 44 % over ~20 min mixed screen ≈ **9 %/hr**. Better than full screen-on (~10–13 %). Not an official 1.8 pocket test (screen was peeked for screenshots; no FGS).
+
+### What worked
+
+- Left the home hex. Two new cells (`aa0fffff`, `aa77ffff`). The grid is real.
+- Distance and m/step look like walking (0.63–0.79), not the 0.00 of walks 1/3.
+- 451/454 accepts, acc 3–8 m. GNSS lock held on a real walk.
+- Standing still (17:12): dwell 44 s, distance **0.0**. Correct — standing should count toward the 90 s dwell floor, never toward metres.
+- Informal screen-off tracking: hexes still filled. Android kept the app alive this time; that is **not** guaranteed without a foreground service.
+
+### Bugs the tester caught (fixed in v0.1.3)
+
+1. **Same hex claimed over and over.** After a claim, `markSubmitted` deletes the visit. The next 120 steps + 80 m in the same cell fire another “Territory claimed” snackbar. Phase 1 should reinforce silently if you already own it.
+2. **Effort / steps from the last hex showing up on the next one.** After a claim, delayed pedometer batches stamped during the old visit have no window left, so they were dumped on the *current* cell. A new hex could open at 140 steps / 90 m with only 18 s of dwell. Orphan steps now drop unless they belong after the new visit started.
+
+One `teleport` reject is expected if the first lock after a car/ride jumps several km (Dhamtour vs home).

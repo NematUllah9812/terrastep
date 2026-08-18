@@ -2,15 +2,16 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **Threshold 1.7 complete.** Claim + force-quit persist (hex stayed blue, tried multiple times).
+**Latest:** Walk 5 — **3 hexes**, screen mostly off. Two bugs found (reclaim + step leak). Fix in v0.1.3.
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
-**Next according to the plan:** **1.8 / 0.3** — foreground service, then a pocket walk with the screen off.
+**Next according to the plan:** **1.8 / 0.3** — real foreground service, then a controlled pocket walk.
 
 | | |
 |---|---|
-| **1.7** | ✅ Walk 4 claimed `89209a0aa73ffff`. Force-quit × N → still blue. |
-| **Walks 1–3** | Old 35 m APK. Best was walk 2 at 64/80 m. |
-| **Next build** | O11 foreground service. Without it, tracking dies when the screen locks. |
+| **Walk 5** | Left home. Cells `aa0fffff`, `aa77ffff`. Territory **3**. m/step 0.63–0.79. Acc 3–8 m. |
+| **Bugs** | Same hex claimable 3×. Steps from last hex leaked into the next. **#30, fixed.** |
+| **Standing still** | Counts as **dwell** (the 90 s clock), not metres. That is correct. |
+| **Next build** | Install v0.1.3, then we add the foreground service (O11). |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -351,6 +352,7 @@ the app in their pocket). Do not start Phase 2 multiplayer until then.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-18 | **Walk 5.** 3 hexes, pocket/screen-off. Reclaim + step-leak (#30). v0.1.3. | #30 |
 | 2026-08-18 | **1.7 complete.** Claim + persist. Force-quit multiple times, hex stayed blue. | — |
 | 2026-08-18 | **Walk 4 / first claim.** v0.1.2+3, brother. Territory 1. 512/512 fixes. | — |
 | 2026-08-18 | **Walk 3 (cellular).** 578 steps, dist 0. Still the v0.1.0 / 35 m APK. | — |

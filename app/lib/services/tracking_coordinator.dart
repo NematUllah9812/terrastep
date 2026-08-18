@@ -163,19 +163,33 @@ class TrackingCoordinator extends ChangeNotifier {
   }
 
   /// Claim any visit that now meets every floor.
+  ///
+  /// An already-owned cell is *reinforced* (effort added, no snackbar).
+  /// Walk 5 showed the same hex celebrating three times because
+  /// `markSubmitted` wiped the visit and the next 120 steps re-claimed it
+  /// (#30). Phase 2 will send the reinforce through `claim_cells` instead.
   void _checkClaims() {
     final ready = accumulator.readyToSubmit();
     if (ready.isEmpty) return;
 
     for (final v in ready) {
-      _claimed[v.cellId] = ClaimedCell(
-        cellId: v.cellId,
-        claimedAt: DateTime.now(),
-        effort: cfg.computeEffort(v.steps, v.distanceM, v.dwellS),
-      );
-      onCellClaimed?.call(v.cellId);
+      final effort = cfg.computeEffort(v.steps, v.distanceM, v.dwellS);
+      final already = _claimed[v.cellId];
+      if (already != null) {
+        _claimed[v.cellId] = ClaimedCell(
+          cellId: v.cellId,
+          claimedAt: already.claimedAt,
+          effort: already.effort + effort,
+        );
+      } else {
+        _claimed[v.cellId] = ClaimedCell(
+          cellId: v.cellId,
+          claimedAt: DateTime.now(),
+          effort: effort,
+        );
+        onCellClaimed?.call(v.cellId);
+      }
     }
-    // Phase 2: enqueue to the outbox here instead of dropping.
     accumulator.markSubmitted(ready);
     _saveClaimed();
   }
