@@ -9,7 +9,6 @@ import '../../app_version.dart';
 import '../../services/location_service.dart';
 import '../../services/tracking_coordinator.dart';
 
-/// Live sensor readout. Tap the copy icon — first line is the version check.
 class DebugOverlay extends StatefulWidget {
   final TrackingCoordinator tracker;
   const DebugOverlay({super.key, required this.tracker});
@@ -76,9 +75,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
     if (tracker.steps.isAvailable) {
       return 'ok (${tracker.steps.sessionTotal})';
     }
-    if (tracker.estimatingSteps) {
-      return 'EST. from dist';
-    }
+    if (tracker.estimatingSteps) return 'EST. from dist';
     return 'waiting…';
   }
 
@@ -97,8 +94,11 @@ class _DebugOverlayState extends State<DebugOverlay> {
     return e;
   }
 
-  bool get _weakLock =>
-      tracker.lastAccuracy != null && tracker.lastAccuracy! > 50;
+  String get _modeLabel => switch (tracker.gpsMode) {
+        GpsMode.warmup => 'warmup 1hz',
+        GpsMode.active => 'walk 2s',
+        GpsMode.idle => 'idle 20s',
+      };
 
   String _dump() {
     final v = tracker.currentVisit;
@@ -120,6 +120,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
       ..writeln('pedometer $_pedometerLabel')
       ..writeln('error $_errorLabel')
       ..writeln('fgs ${tracker.foregroundServiceOn ? 'on' : 'off'}')
+      ..writeln('gps mode $_modeLabel')
       ..writeln('gps src ${tracker.usingLocationManager ? 'chip' : 'fused'}')
       ..writeln('last fix $_lastFixAge')
       ..writeln('motion ${tracker.motion.name}')
@@ -138,9 +139,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Debug dump copied'),
-        duration: Duration(seconds: 2),
-      ),
+          content: Text('Debug dump copied'), duration: Duration(seconds: 2)),
     );
   }
 
@@ -149,7 +148,6 @@ class _DebugOverlayState extends State<DebugOverlay> {
     final v = tracker.currentVisit;
     final cfg = tracker.cfg;
     final rej = tracker.rejections;
-
     return Container(
       margin: const EdgeInsets.all(10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -168,46 +166,36 @@ class _DebugOverlayState extends State<DebugOverlay> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Text('SENSORS',
-                    style: TextStyle(
-                        fontSize: 10,
-                        letterSpacing: 1.2,
-                        color: Color(0xFF8FA3C4),
-                        fontWeight: FontWeight.bold)),
-                const Spacer(),
-                GestureDetector(
-                  onTap: _copy,
-                  child: const Icon(Icons.copy, size: 14, color: Color(0xFF8FA3C4)),
-                ),
-                const SizedBox(width: 8),
-                _Pill(
-                  label: tracker.foregroundServiceOn ? 'fgs' : 'no-fgs',
-                  color: tracker.foregroundServiceOn
-                      ? const Color(0xFF22C55E)
-                      : const Color(0xFFEF4444),
-                ),
-                const SizedBox(width: 6),
-                _Pill(
-                  label: tracker.motion.name,
-                  color: switch (tracker.motion) {
-                    MotionState.walking => const Color(0xFF22C55E),
-                    MotionState.running => const Color(0xFF3B82F6),
-                    MotionState.vehicle => const Color(0xFFEF4444),
-                    MotionState.stationary => const Color(0xFF64748B),
-                  },
-                ),
-              ],
-            ),
-            if (_weakLock) ...[
-              const SizedBox(height: 6),
-              const Text(
-                'WEAK LOCK — Wi-Fi/network, not GPS.',
-                style: TextStyle(
-                    color: Color(0xFFFBBF24), fontWeight: FontWeight.bold),
+            Row(children: [
+              const Text('SENSORS',
+                  style: TextStyle(
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                      color: Color(0xFF8FA3C4),
+                      fontWeight: FontWeight.bold)),
+              const Spacer(),
+              GestureDetector(
+                onTap: _copy,
+                child: const Icon(Icons.copy, size: 14, color: Color(0xFF8FA3C4)),
               ),
-            ],
+              const SizedBox(width: 8),
+              _Pill(
+                label: tracker.foregroundServiceOn ? 'fgs' : 'no-fgs',
+                color: tracker.foregroundServiceOn
+                    ? const Color(0xFF22C55E)
+                    : const Color(0xFFEF4444),
+              ),
+              const SizedBox(width: 6),
+              _Pill(
+                label: tracker.motion.name,
+                color: switch (tracker.motion) {
+                  MotionState.walking => const Color(0xFF22C55E),
+                  MotionState.running => const Color(0xFF3B82F6),
+                  MotionState.vehicle => const Color(0xFFEF4444),
+                  MotionState.stationary => const Color(0xFF64748B),
+                },
+              ),
+            ]),
             const SizedBox(height: 6),
             _row('cell', v?.cellId ?? '—'),
             _row('steps', '${v?.steps ?? 0} / ${cfg.claimMinSteps}'),
@@ -215,8 +203,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
                 '${(v?.distanceM ?? 0).toStringAsFixed(1)} m / ${cfg.claimMinDistanceM}'),
             _row('dwell', '${v?.dwellS ?? 0} s / ${cfg.claimMinDwellS}'),
             _row('fixes', '${v?.fixCount ?? 0} / ${cfg.claimMinFixes}'),
-            _row('m/step', (v?.metresPerStep ?? 0).toStringAsFixed(2),
-                hint: 'server wants 0.30-1.60'),
+            _row('m/step', (v?.metresPerStep ?? 0).toStringAsFixed(2)),
             const Divider(height: 14, color: Color(0xFF243352)),
             _row(
                 'gps acc',
@@ -226,31 +213,16 @@ class _DebugOverlayState extends State<DebugOverlay> {
             _row('raw gps', '${tracker.rawFixes}'),
             _row('accepted', '${tracker.fixesAccepted}'),
             _row('last fix', _lastFixAge),
-            _row('pedometer', _pedometerLabel,
-                valueColor: tracker.estimatingSteps
-                    ? const Color(0xFFFBBF24)
-                    : null),
-            _row('fgs', tracker.foregroundServiceOn ? 'on' : 'off',
-                valueColor: tracker.foregroundServiceOn
-                    ? const Color(0xFF22C55E)
-                    : const Color(0xFFEF4444)),
+            _row('pedometer', _pedometerLabel),
+            _row('fgs', tracker.foregroundServiceOn ? 'on' : 'off'),
+            _row('gps mode', _modeLabel),
             _row('gps src', tracker.usingLocationManager ? 'chip' : 'fused'),
             _row('territory', '${tracker.claimed.length} hexes'),
             _row('battery', _batteryLabel),
             _row('elapsed', _elapsed),
-            _row('error', _errorLabel,
-                valueColor: _errorLabel == 'none'
-                    ? null
-                    : const Color(0xFFFCA5A5)),
+            _row('error', _errorLabel),
             if (rej.isNotEmpty) ...[
               const Divider(height: 14, color: Color(0xFF243352)),
-              const Text('REJECTED FIXES',
-                  style: TextStyle(
-                      fontSize: 10,
-                      letterSpacing: 1.2,
-                      color: Color(0xFF8FA3C4),
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
               for (final e in rej.entries)
                 _row(_rejName(e.key), '${e.value}',
                     valueColor: const Color(0xFFFCA5A5)),
@@ -269,30 +241,20 @@ class _DebugOverlayState extends State<DebugOverlay> {
         FixRejection.clockSkew => 'clock',
       };
 
-  Widget _row(String k, String val, {String? hint, Color? valueColor}) =>
-      Padding(
+  Widget _row(String k, String val, {Color? valueColor}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 1),
-        child: Row(
-          children: [
-            SizedBox(
-                width: 76,
-                child: Text(k,
-                    style: const TextStyle(color: Color(0xFF8FA3C4)))),
-            Flexible(
-              child: Text(val,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: valueColor ?? const Color(0xFFE6EDF7),
-                      fontWeight: FontWeight.w600)),
-            ),
-            if (hint != null) ...[
-              const SizedBox(width: 6),
-              Text(hint,
-                  style: const TextStyle(
-                      fontSize: 9.5, color: Color(0xFF64748B))),
-            ],
-          ],
-        ),
+        child: Row(children: [
+          SizedBox(
+              width: 76,
+              child: Text(k, style: const TextStyle(color: Color(0xFF8FA3C4)))),
+          Flexible(
+            child: Text(val,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: valueColor ?? const Color(0xFFE6EDF7),
+                    fontWeight: FontWeight.w600)),
+          ),
+        ]),
       );
 }
 

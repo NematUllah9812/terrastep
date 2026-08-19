@@ -219,10 +219,6 @@ class SessionAccumulator {
         return;
       }
     }
-    // No window matched. After markSubmitted deletes a claimed visit, delayed
-    // pedometer batches from that visit used to dump onto the *current* cell
-    // and inflate the next hex (#30). Only attach if the timestamp belongs
-    // to the current visit.
     final cur = _currentCell == null ? null : _visits[_currentCell];
     if (cur != null && !at.isBefore(cur.windowStart)) {
       cur.steps += steps;

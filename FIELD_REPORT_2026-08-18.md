@@ -299,15 +299,34 @@ What we got: **12 GPS samples in 23 minutes**, **0 pedometer steps**, dwell 28 s
 
 **Threshold 1.8 / 0.3 cannot pass on this APK.** Android froze the app in the pocket. Walk 5 sometimes survived because the process was still warm and the screen was peeked. A real leave-the-house / pray / come-back cycle kills sensors.
 
-This is the evidence for O11, not a failed walk. **v0.1.4+5** ships the
-foreground service. Repeat this exact test as **Walk 7**:
+This is the evidence for O11, not a failed walk. **Walk 7 on v0.1.4+5
+closed it.**
 
-1. Uninstall v0.1.3. Install `releases/terrastep-debug.apk`.
-2. Dump first line must say `v0.1.4+5`. Overlay `fgs` must say `on`.
-3. Shade must show *Terrastep is tracking*.
-4. Pocket, screen off, ~20–30 min. Unlock, copy overlay.
-5. Pass: `raw gps` in the hundreds, pedometer &gt; 0 if you walked,
-   `last fix` recent. Record battery start/end. Target &lt;4 %/hr.
+---
+
+## Walk 7 — prayer, pocket, FGS (~20:43–21:05)
+
+**Build:** v0.1.4+5 (fgs pill green, *Terrastep is tracking* in the shade).  
+**What:** same trip as Walk 6 — phone in pocket, went to pray, came back.
+
+| Time | Elapsed | Steps | Dist | Dwell | Fixes | Acc | raw/acc | Pedo | Terr | Batt | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 20:43 | 00:32 | 0 | 0.0 | 20 | 28 | 6.7 | 28/28 | 0 | 0 | 24% | fgs on, last fix now, fused |
+| 21:05 | **21:47** | **129** | **84.7** | 40 | 73 | 3.7 | **1289/1284** | **765** | **1** | 21% | claimed home hex. m/step **0.66**. teleport 5 |
+
+HUD after claim is a *new* visit (129/84.7) — `markSubmitted` cleared the
+paying visit. Pedometer 765 is the session total. Correct.
+
+### Verdict
+
+**Pocket tracking: PASS.** Walk 6 = 12 GPS / 0 steps. Walk 7 = ~1 Hz for
+22 min, steps counted, hex claimed, last fix `now`.
+
+**Battery: not passed, deferred.** 3 % in ~21 min ≈ **8.5 %/hr** (some
+screen-on for screenshots). Target &lt;4, abort &gt;6. Owner decision
+2026-08-18: **do not block on this now** (open item **O12**). Come back
+and add idle sampling (20 s while standing, 2 s while walking, wake lock
+off) before any public release. Do not ship 1 Hz + wake lock forever.
 
 ---
 
