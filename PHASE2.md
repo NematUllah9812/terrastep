@@ -8,28 +8,28 @@
 Do these in order. Do not skip ahead to multiplayer (Phase 3).
 
 ```
-  2.1  Real Supabase + apply SQL          ← you paste SQL in the dashboard
-  2.2  Auth (magic link)                  ← app login screen
+  2.1  Real Supabase + apply SQL          ← done 2026-08-19 (cfg → 9, redirect added)
+  2.2  Auth (magic link)                  ← next: APK with dart-define + device test
   2.3  Profile auto-create                ← already in 01_DATA_MODEL.sql
-  2.4  RLS hostile test                   ← after 2.1, with a real JWT
-  2.5  claim_cells on the real project    ← SQL already written
+  2.4  RLS hostile test                   ← after login, with a real JWT
+  2.5  claim_cells on the real project    ← RPC live (anon correctly denied)
   2.6  Outbox → real RPC                  ← client already has SyncWorker
-  2.7  get_cells_in_view                  ← SQL already written
+  2.7  get_cells_in_view                  ← RPC live (empty view)
   2.8  Map draws SERVER hexes             ← two phones agree
   2.9  Rename / recolour own hex          ← SQL already written
 ```
 
-## What you do once (2.1)
+## 2.1 status (2026-08-19)
 
-1. Open [SQL Editor](https://supabase.com/dashboard/project/iaoqwxcyjkpvpqwoszih/sql).
-2. Paste **`01_DATA_MODEL.sql`** → Run. If `h3` / `postgis` / `pg_cron` fail,
-   that is OK — local tests already shim those. Note the error and keep going
-   after commenting those three `create extension` lines, then re-run.
-3. Paste **`02_CLAIM_ENGINE.sql`** → Run.
-4. New query: `select cfg('h3_resolution');` must return **9**.
-5. Authentication → URL configuration → add redirect  
-   `io.terrastep.app://login-callback/`
-6. Tell me “schema applied” (or paste the error).
+Done on project `iaoqwxcyjkpvpqwoszih`:
+
+- `01_DATA_MODEL.sql` applied (extensions `h3` / `postgis` / `pg_cron` commented — expected).
+- `02_CLAIM_ENGINE.sql` applied (`Success. No rows returned` is correct).
+- `select cfg('h3_resolution')` → **9**. All 18 `game_config` rows present.
+- REST: `get_cells_in_view` returns `[]`. `claim_cells` is **denied to anon** (correct).
+- Redirect added: `io.terrastep.app://login-callback/`
+
+Next is 2.2: build a debug APK with `--dart-define=SUPABASE_ANON_KEY=…` and test magic link. **Continue offline** still walks.
 
 **Never paste the `service_role` / `sb_secret_` key into chat or git.**  
 The anon/publishable key is enough for the app. CI rejects raw JWTs, so the

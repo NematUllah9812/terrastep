@@ -1,11 +1,11 @@
 # Terrastep — Current Progress
 
-**Last updated:** 2026-08-18
+**Last updated:** 2026-08-19
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **Phase 2 started** (2026-08-19). Ship remains **v0.1.4+5**. Battery parked (O12).
+**Latest:** **Phase 2.** Schema is on the real project (`cfg` → 9). Ship remains **v0.1.4+5**. Battery parked (O12).
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
 **Phase 2 map:** [`PHASE2.md`](PHASE2.md)
-**Next:** apply `01_` then `02_` in the Supabase SQL editor (project `iaoqwxcyjkpvpqwoszih`).
+**Next:** login APK (2.2) with `--dart-define=SUPABASE_ANON_KEY`.
 
 | | |
 |---|---|
@@ -174,7 +174,7 @@ pocket (Walk 7). Battery &lt;4 %/hr is **deferred** (O12), not failed-and-forgot
 | Database schema | ✅ Written + verified deploys |
 | Claim / contest / decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
-| Supabase deployment | ❌ Local Postgres only |
+| Supabase deployment | 🟡 Schema + RPCs on `iaoqwxcyjkpvpqwoszih`. Login untested. |
 | Flutter app | 🟡 Claims + persist + FGS on Android. No iOS. |
 | Real GPS / steps / battery | 🟡 Pocket claim proven (Walk 7). Battery %/hr deferred (O12). |
 | Store submission | ❌ Not started |
@@ -210,8 +210,8 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
-| 2.1 | Supabase project + schema applied | 🟡 | Deploys cleanly on Postgres 17. Not on a real Supabase project. |
-| 2.2 | Auth (magic link + OAuth) | ⬜ | |
+| 2.1 | Supabase project + schema applied | ✅ | **On `iaoqwxcyjkpvpqwoszih`.** `cfg` → 9. Redirect added. Extensions commented (ok). |
+| 2.2 | Auth (magic link + OAuth) | 🟡 | Login screen in tree. APK not yet built with anon key. |
 | 2.3 | Profile auto-creation trigger | ✅ | `on_auth_user_created`; exercised by fixtures |
 | 2.4 | RLS hostile test | 🟡 | Policies written. Hostile test needs a real JWT. |
 | 2.5 | `claim_cells` RPC | ✅ | 48 assertions, including all 5 required rejections |
@@ -258,14 +258,14 @@ All ⬜. Not started.
 |---|---|---|---|---|
 | 0 — Spike | 0 | 2 | 1 | 3 |
 | 1 — Prototype | 2 | 5 | 1 | 8 |
-| 2 — Backend | 4 | 4 | 1 | 9 |
+| 2 — Backend | 5 | 4 | 0 | 9 |
 | 3 — Multiplayer | 2 | 4 | 2 | 8 |
 | 4 — Anti-cheat | 3 | 4 | 1 | 8 |
 | 5 — Launch | 0 | 0 | 9 | 9 |
-| **Total** | **11** | **19** | **15** | **45** |
+| **Total** | **12** | **19** | **14** | **45** |
 
-**Fully complete: 11 / 45 (24%).**
-Partials at half credit: ~20.5 / 45 (**~46%**).
+**Fully complete: 12 / 45 (27%).**
+Partials at half credit: 21.5 / 45 (**~48%**).
 
 1.7 is the first on-device acceptance test that fully passed.
 
@@ -336,10 +336,9 @@ latency target, and **pocket battery (1.8 / Walk 7)**.
 
 **Do these in this order. Nothing else first.**
 
-1. **You:** apply schema — see [`PHASE2.md`](PHASE2.md). Reply “schema applied”.
-2. **Then:** magic-link login on a new APK (2.2).
-3. **Then:** wire outbox → `claim_cells` (2.6) and draw server hexes (2.8).
-4. **O12 battery later.** Do not reintroduce idle sampling until asked.
+1. **Now:** magic-link login APK (2.2). Build with `--dart-define=SUPABASE_ANON_KEY` (do not commit the JWT).
+2. **Then:** wire outbox → `claim_cells` (2.6) and draw server hexes (2.8).
+3. **O12 battery later.** Do not reintroduce idle sampling until asked.
 
 Pocket hex-fill (Phase 1 exit *loop*) is proven. The &lt;4 %/hr number is
 parked, not forgotten.
@@ -357,7 +356,8 @@ parked, not forgotten.
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-19 | **Phase 2 opened.** Project `iaoqwxcyjkpvpqwoszih`. Login screen + `PHASE2.md`. Schema not applied yet. | 2.1 |
+| 2026-08-19 | **2.1 done.** Schema + RPCs on `iaoqwxcyjkpvpqwoszih`. `cfg` → 9. Redirect added. Login APK next. | 2.1 |
+| 2026-08-19 | **Phase 2 opened.** Project `iaoqwxcyjkpvpqwoszih`. Login screen + `PHASE2.md`. | 2.1 |
 | 2026-08-19 | **v0.1.5 rolled back.** Ship stays v0.1.4+5. | O12 |
 | 2026-08-18 | **Walk 7.** Pocket/prayer on v0.1.4+5. 1289 GPS, 765 steps, hex claimed, fgs on. Battery ~8.5 %/hr. **Battery gate deferred (O12)** — come back later. | O11 ✅, O12 |
 | 2026-08-18 | **v0.1.4+5.** Geolocator FGS + wake lock + POST_NOTIFICATIONS + battery-exemption. 1 Hz, no distance filter (so a standing prayer test cannot look like a freeze). Dump header + pubspec bumped together. | O11, #31 |

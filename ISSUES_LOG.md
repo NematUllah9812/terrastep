@@ -963,7 +963,7 @@ Known problems not yet solved. Carry these forward.
 
 | # | Item | Where | Status |
 |---|---|---|---|
-| O1 | `h3` extension availability on Supabase unverified | #5 | Check at threshold 2.1 |
+| O1 | `h3` extension availability on Supabase unverified | #5 | **2.1 applied without `h3`.** Extensions commented. Optional `[H3-PG]` still off. |
 | O2 | `realtime.send()` inside `SECURITY DEFINER` untested on real Supabase | #6 | Verify at threshold 3.2 |
 | O3 | Rate limiting written but untested | 4.6 | Needs a 60-cell fixture |
 | O4 | `score_suspicion()` written, never deployed or run | 4.7 | Needs a synthetic bot profile |
