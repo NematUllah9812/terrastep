@@ -141,6 +141,5 @@ select * from pg_available_extensions where name like 'h3%';
 
 ≈ 5 months part-time at 12 h/week.
 
-**Next action:** Walk 7 — 20–30 min pocket, screen off, on **v0.1.4+5**.
-Copy the overlay after. That scores 1.8 / 0.3.
-Write-up: [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md).
+**Phase 2 is open.** Work map: [`PHASE2.md`](PHASE2.md).
+Ship APK is still **v0.1.4+5**. Battery later (O12).

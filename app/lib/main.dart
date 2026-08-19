@@ -2,17 +2,24 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:terrastep_core/core/game_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'app_version.dart';
+import 'config/supabase_env.dart';
 import 'services/h3_indexer.dart';
 import 'services/location_service.dart';
 import 'services/step_service.dart';
 import 'services/tracking_coordinator.dart';
+import 'ui/auth/login_screen.dart';
 import 'ui/map/map_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (SupabaseEnv.configured) {
+    await Supabase.initialize(
+      url: SupabaseEnv.url,
+      anonKey: SupabaseEnv.anonKey,
+    );
+  }
   runApp(const TerrastepApp());
 }
 
@@ -32,8 +39,48 @@ class TerrastepApp extends StatelessWidget {
             brightness: Brightness.dark,
           ),
         ),
-        home: const _Boot(),
+        home: const _Gate(),
       );
+}
+
+/// Login (if configured) → permissions → map.
+class _Gate extends StatefulWidget {
+  const _Gate();
+
+  @override
+  State<_Gate> createState() => _GateState();
+}
+
+class _GateState extends State<_Gate> {
+  bool _offline = false;
+
+  Session? get _session {
+    if (!SupabaseEnv.configured) return null;
+    try {
+      return Supabase.instance.client.auth.currentSession;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (SupabaseEnv.configured) {
+      Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final signedIn = _session != null;
+    if (!signedIn && !_offline && SupabaseEnv.configured) {
+      return LoginScreen(onOffline: () => setState(() => _offline = true));
+    }
+    return const _Boot();
+  }
 }
 
 class _Boot extends StatefulWidget {
@@ -43,84 +90,47 @@ class _Boot extends StatefulWidget {
   State<_Boot> createState() => _BootState();
 }
 
-class _BootState extends State<_Boot> with WidgetsBindingObserver {
+class _BootState extends State<_Boot> {
   TrackingCoordinator? _tracker;
   String? _error;
   bool _busy = false;
-  bool _needGps = false;
-  bool _needSettings = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _start();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _tracker?.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _tracker == null && !_busy) {
-      _start();
-    }
   }
 
   Future<void> _start() async {
     setState(() {
       _busy = true;
       _error = null;
-      _needGps = false;
-      _needSettings = false;
     });
 
     if (!await Geolocator.isLocationServiceEnabled()) {
       setState(() {
         _busy = false;
-        _needGps = true;
         _error = 'Location is turned off. Enable GPS and tap retry.';
       });
       return;
     }
 
-    PermissionStatus loc = PermissionStatus.denied;
-    try {
-      loc = await Permission.locationWhenInUse.request();
-      if (!loc.isGranted) loc = await Permission.location.request();
-    } catch (_) {}
-
-    if (!loc.isGranted) {
-      final viaGeo = await LocationService.requestForeground();
-      if (viaGeo == LocationPermission.deniedForever || loc.isPermanentlyDenied) {
-        setState(() {
-          _busy = false;
-          _needSettings = true;
-          _error = 'Location permission was permanently denied. Enable it in '
-              'Settings › Apps › Terrastep › Permissions.';
-        });
-        return;
-      }
-      if (viaGeo != LocationPermission.always &&
-          viaGeo != LocationPermission.whileInUse) {
-        setState(() {
-          _busy = false;
-          _error = 'Terrastep needs location to award you territory.';
-        });
-        return;
-      }
+    final perm = await LocationService.requestForeground();
+    if (perm == LocationPermission.denied ||
+        perm == LocationPermission.deniedForever) {
+      setState(() {
+        _busy = false;
+        _error = perm == LocationPermission.deniedForever
+            ? 'Location permission was permanently denied. Enable it in '
+                'Settings › Apps › Terrastep › Permissions.'
+            : 'Terrastep needs location to award you territory.';
+      });
+      return;
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
         await Permission.activityRecognition.request();
-      } catch (_) {}
-      try {
-        await Permission.notification.request();
       } catch (_) {}
     }
 
@@ -128,21 +138,20 @@ class _BootState extends State<_Boot> with WidgetsBindingObserver {
       indexer: H3Indexer(),
       location: LocationService(),
       steps: StepService(),
-      cfg: const GameConfig(maxAccuracyM: 80),
     );
     await t.init();
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      try {
-        await Permission.ignoreBatteryOptimizations.request();
-      } catch (_) {}
-    }
 
     if (!mounted) return;
     setState(() {
       _tracker = t;
       _busy = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _tracker?.dispose();
+    super.dispose();
   }
 
   @override
@@ -166,10 +175,6 @@ class _BootState extends State<_Boot> with WidgetsBindingObserver {
               const SizedBox(height: 6),
               const Text('Walk to claim territory.',
                   style: TextStyle(color: Color(0xFF8FA3C4))),
-              const SizedBox(height: 4),
-              Text(kAppVersion,
-                  style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF64748B))),
               const SizedBox(height: 28),
               if (_busy)
                 const CircularProgressIndicator()
@@ -182,12 +187,7 @@ class _BootState extends State<_Boot> with WidgetsBindingObserver {
                 const SizedBox(height: 16),
                 FilledButton(
                     onPressed: _start, child: const Text('Grant & start')),
-                if (_needGps)
-                  TextButton(
-                    onPressed: Geolocator.openLocationSettings,
-                    child: const Text('Turn on GPS'),
-                  ),
-                if (_needSettings)
+                if (_error?.contains('Settings') ?? false)
                   TextButton(
                     onPressed: Geolocator.openAppSettings,
                     child: const Text('Open settings'),
