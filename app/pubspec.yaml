@@ -1,7 +1,7 @@
 name: terrastep
 description: Walk to claim territory. GPS hex-grid territory control.
 publish_to: "none"
-version: 0.1.5+6
+version: 0.1.4+5
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

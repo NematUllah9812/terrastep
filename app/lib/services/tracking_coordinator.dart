@@ -71,7 +71,6 @@ class TrackingCoordinator extends ChangeNotifier {
   int get rawFixes => location.rawFixes;
   bool get foregroundServiceOn => location.foregroundServiceOn;
   bool get usingLocationManager => location.usingLocationManager;
-  GpsMode get gpsMode => location.mode;
 
   StreamSubscription<void>? _locSub;
   StreamSubscription<void>? _stepSub;
@@ -127,7 +126,6 @@ class TrackingCoordinator extends ChangeNotifier {
     });
 
     _stepSub = steps.deltas.listen((d) {
-      location.noteSteps();
       accumulator.addSteps(d.steps, d.at);
       _checkClaims();
       notifyListeners();
