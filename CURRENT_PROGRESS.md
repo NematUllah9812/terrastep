@@ -2,10 +2,10 @@
 
 **Last updated:** 2026-08-19
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **Phase 2.** Schema is on the real project (`cfg` → 9). Ship remains **v0.1.4+5**. Battery parked (O12).
+**Latest:** **Phase 2.** Schema live (`cfg` → 9). Login APK **v0.1.6+7** (FGS tracking unchanged). Battery parked (O12).
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
 **Phase 2 map:** [`PHASE2.md`](PHASE2.md)
-**Next:** login APK (2.2) with `--dart-define=SUPABASE_ANON_KEY`.
+**Next:** install v0.1.6+7, send a magic link, confirm dump `auth you@email`.
 
 | | |
 |---|---|
@@ -49,12 +49,12 @@ Also available from Actions (rebuilds on every relevant push): repo →
 | | |
 |---|---|
 | File | `releases/terrastep-debug.apk` |
-| Version | **v0.1.4+5** (dump first line) |
+| Version | **v0.1.6+7** (dump first line) |
 | Size | 45 MB |
 | ABI | `arm64-v8a` |
 | Signed | Debug (not Play Store) |
-| Built | 2026-08-18, Flutter 3.27.4, locally |
-| Offline | Yes — no account, no server, no Supabase |
+| Built | 2026-08-19, Flutter 3.27.4, locally |
+| Offline | **Continue offline** still walks. Login is optional. |
 
 ### What it does
 
@@ -211,7 +211,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | # | Threshold | Status | Note |
 |---|---|---|---|
 | 2.1 | Supabase project + schema applied | ✅ | **On `iaoqwxcyjkpvpqwoszih`.** `cfg` → 9. Redirect added. Extensions commented (ok). |
-| 2.2 | Auth (magic link + OAuth) | 🟡 | Login screen in tree. APK not yet built with anon key. |
+| 2.2 | Auth (magic link + OAuth) | 🟡 | **v0.1.6+7 APK** has login + deep link. Magic link not yet tapped on a phone. |
 | 2.3 | Profile auto-creation trigger | ✅ | `on_auth_user_created`; exercised by fixtures |
 | 2.4 | RLS hostile test | 🟡 | Policies written. Hostile test needs a real JWT. |
 | 2.5 | `claim_cells` RPC | ✅ | 48 assertions, including all 5 required rejections |
@@ -336,7 +336,7 @@ latency target, and **pocket battery (1.8 / Walk 7)**.
 
 **Do these in this order. Nothing else first.**
 
-1. **Now:** magic-link login APK (2.2). Build with `--dart-define=SUPABASE_ANON_KEY` (do not commit the JWT).
+1. **You:** install `releases/terrastep-debug.apk` (dump must say **v0.1.6+7**). Send a magic link, tap it on the phone. Copy the overlay — `auth` should be your email. **Continue offline** if you just want to walk.
 2. **Then:** wire outbox → `claim_cells` (2.6) and draw server hexes (2.8).
 3. **O12 battery later.** Do not reintroduce idle sampling until asked.
 
@@ -356,7 +356,8 @@ parked, not forgotten.
 
 | Date | Change | Issues |
 |---|---|---|
-| 2026-08-19 | **2.1 done.** Schema + RPCs on `iaoqwxcyjkpvpqwoszih`. `cfg` → 9. Redirect added. Login APK next. | 2.1 |
+| 2026-08-19 | **v0.1.6+7.** Login screen + magic-link deep link. Anon key via dart-define (not committed). FGS unchanged. | 2.2 |
+| 2026-08-19 | **2.1 done.** Schema + RPCs on `iaoqwxcyjkpvpqwoszih`. `cfg` → 9. Redirect added. | 2.1 |
 | 2026-08-19 | **Phase 2 opened.** Project `iaoqwxcyjkpvpqwoszih`. Login screen + `PHASE2.md`. | 2.1 |
 | 2026-08-19 | **v0.1.5 rolled back.** Ship stays v0.1.4+5. | O12 |
 | 2026-08-18 | **Walk 7.** Pocket/prayer on v0.1.4+5. 1289 GPS, 765 steps, hex claimed, fgs on. Battery ~8.5 %/hr. **Battery gate deferred (O12)** — come back later. | O11 ✅, O12 |

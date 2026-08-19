@@ -70,6 +70,27 @@ if 'usesCleartextTraffic' not in xml:
                       'android:label="Terrastep"\n        android:usesCleartextTraffic="true"', 1) \
         if 'usesCleartextTraffic' not in xml else xml
 
+# Magic-link callback. singleTask so the email tap returns to this activity
+# instead of stacking a second MainActivity.
+if 'android:launchMode="singleTop"' in xml:
+    xml = xml.replace('android:launchMode="singleTop"',
+                      'android:launchMode="singleTask"', 1)
+    print('   + launchMode singleTask')
+
+if 'io.terrastep.app' not in xml:
+    callback = '''
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="io.terrastep.app" android:host="login-callback"/>
+            </intent-filter>'''
+    needle = '        </activity>'
+    if needle not in xml:
+        sys.exit('ERROR: activity close tag not found')
+    xml = xml.replace(needle, callback + '\n' + needle, 1)
+    print('   + magic-link intent-filter io.terrastep.app://login-callback/')
+
 open(path, 'w').write(xml)
 print('   done')
 PY

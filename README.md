@@ -9,9 +9,8 @@ code, anti-cheat design, cost ceilings, and a 45-threshold roadmap.
 hysteresis, decay, idempotency, teleport, shadow-ban). All 48 pass.
 The Android debug build lives at
 [`releases/terrastep-debug.apk`](releases/terrastep-debug.apk)
-(**v0.1.4+5**, foreground service). Threshold **1.7 is done**. Next is
-the pocket walk that scores **1.8 / 0.3**. See
-[`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md).
+(**v0.1.6+7**, login + same FGS as Walk 7). Threshold **1.7 is done**.
+Phase 2 schema is live. See [`CURRENT_PROGRESS.md`](CURRENT_PROGRESS.md).
 
 ---
 
@@ -142,4 +141,4 @@ select * from pg_available_extensions where name like 'h3%';
 ≈ 5 months part-time at 12 h/week.
 
 **Phase 2 is open.** Work map: [`PHASE2.md`](PHASE2.md).
-Ship APK is still **v0.1.4+5**. Battery later (O12).
+Ship APK is **v0.1.6+7**. Battery later (O12).

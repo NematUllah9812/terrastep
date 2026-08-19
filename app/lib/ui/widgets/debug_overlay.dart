@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:terrastep_core/domain/session_accumulator.dart';
 
 import '../../app_version.dart';
+import '../../config/supabase_env.dart';
 import '../../services/location_service.dart';
 import '../../services/tracking_coordinator.dart';
 
@@ -100,11 +102,24 @@ class _DebugOverlayState extends State<DebugOverlay> {
   bool get _weakLock =>
       tracker.lastAccuracy != null && tracker.lastAccuracy! > 50;
 
+  /// First-line proof that this APK has a session (or is offline).
+  String get _authLabel {
+    if (!SupabaseEnv.configured) return 'no-key';
+    try {
+      final u = Supabase.instance.client.auth.currentUser;
+      if (u == null) return 'offline';
+      return u.email ?? u.id.substring(0, 8);
+    } catch (_) {
+      return 'offline';
+    }
+  }
+
   String _dump() {
     final v = tracker.currentVisit;
     final cfg = tracker.cfg;
     final buf = StringBuffer()
       ..writeln('Terrastep debug  $kAppVersion')
+      ..writeln('auth $_authLabel')
       ..writeln('elapsed $_elapsed   battery $_batteryLabel')
       ..writeln('cell ${v?.cellId ?? '—'}')
       ..writeln('steps ${v?.steps ?? 0} / ${cfg.claimMinSteps}')
@@ -236,6 +251,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
                     : const Color(0xFFEF4444)),
             _row('gps src', tracker.usingLocationManager ? 'chip' : 'fused'),
             _row('territory', '${tracker.claimed.length} hexes'),
+            _row('auth', _authLabel),
             _row('battery', _batteryLabel),
             _row('elapsed', _elapsed),
             _row('error', _errorLabel,

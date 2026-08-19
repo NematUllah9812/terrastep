@@ -21,9 +21,9 @@ Artifacts → `terrastep-debug-apk`. The workflow pins Flutter **3.27.4**
 > Debug build, so it is unsigned and larger than a release build. Fine for
 > testing; not for the Play Store.
 
-> **v0.1.4+5 starts a location foreground service.** A persistent
-> *Terrastep is tracking* notification must stay up with the screen off.
-> That is the 1.8 / 0.3 test: 20–30 min pocket, then copy the overlay.
+> **v0.1.6+7** is the Phase 2 login APK. Dump first line must say that.
+> Same FGS as Walk 7 (*Terrastep is tracking*). Login is optional —
+> **Continue offline** still walks.
 
 ---
 

@@ -9,7 +9,7 @@ Do these in order. Do not skip ahead to multiplayer (Phase 3).
 
 ```
   2.1  Real Supabase + apply SQL          ← done 2026-08-19 (cfg → 9, redirect added)
-  2.2  Auth (magic link)                  ← next: APK with dart-define + device test
+  2.2  Auth (magic link)                  ← APK v0.1.6+7 built. Device test next.
   2.3  Profile auto-create                ← already in 01_DATA_MODEL.sql
   2.4  RLS hostile test                   ← after login, with a real JWT
   2.5  claim_cells on the real project    ← RPC live (anon correctly denied)
@@ -29,7 +29,9 @@ Done on project `iaoqwxcyjkpvpqwoszih`:
 - REST: `get_cells_in_view` returns `[]`. `claim_cells` is **denied to anon** (correct).
 - Redirect added: `io.terrastep.app://login-callback/`
 
-Next is 2.2: build a debug APK with `--dart-define=SUPABASE_ANON_KEY=…` and test magic link. **Continue offline** still walks.
+**2.2 APK:** `releases/terrastep-debug.apk` is **v0.1.6+7**. Dump first line
+must say that. Same FGS tracking as Walk 7. Login screen + Continue offline.
+Magic link not yet proven on a phone.
 
 **Never paste the `service_role` / `sb_secret_` key into chat or git.**  
 The anon/publishable key is enough for the app. CI rejects raw JWTs, so the

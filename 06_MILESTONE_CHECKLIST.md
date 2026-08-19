@@ -9,9 +9,9 @@ here.** This file is the work queue: a box is checked only when the
 acceptance test has actually been run. Code that compiles but has not
 been walked is still unchecked.
 
-**Where we are (2026-08-19):** **Phase 2.** Schema is on project
-`iaoqwxcyjkpvpqwoszih` (`cfg` → 9). Pocket tracking ✅ on **v0.1.4+5**.
-Battery parked (O12). Next: login APK (2.2) — [`PHASE2.md`](PHASE2.md).
+**Where we are (2026-08-19):** **Phase 2.** Schema on project
+`iaoqwxcyjkpvpqwoszih` (`cfg` → 9). Login APK **v0.1.6+7** (FGS same as
+Walk 7). Battery parked (O12). Next: tap a magic link on the phone.
 
 ---
 
