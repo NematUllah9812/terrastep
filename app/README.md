@@ -97,8 +97,10 @@ flutter create --platforms=android --org io.terrastep --project-name terrastep .
 bash ../scripts/patch_android_manifest.sh
 rm -f test/widget_test.dart
 flutter pub get
-flutter build apk --debug --target-platform android-arm64
+flutter build apk --debug --target-platform android-arm64 \
+  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 # -> build/app/outputs/flutter-apk/app-debug.apk
+# Do not commit the JWT. CI rejects eyJhbGci… in text files.
 cp build/app/outputs/flutter-apk/app-debug.apk ../releases/terrastep-debug.apk
 ```
 
