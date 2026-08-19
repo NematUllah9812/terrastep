@@ -9,9 +9,9 @@ here.** This file is the work queue: a box is checked only when the
 acceptance test has actually been run. Code that compiles but has not
 been walked is still unchecked.
 
-**Where we are (2026-08-18):** **1.6 and 1.7 are ✅.** FGS is in
-**v0.1.4+5**. Next is Walk 7 (pocket 20–30 min) to score **1.8 / 0.3**.
-APK: `releases/terrastep-debug.apk`.
+**Where we are (2026-08-19):** **1.6 / 1.7 ✅.** Walk 7 pocket tracking ✅
+on **v0.1.4+5**. Battery &lt;4 %/hr **parked (O12)**. v0.1.5 rolled back.
+Next: Phase 2.1. APK: `releases/terrastep-debug.apk`.
 
 ---
 

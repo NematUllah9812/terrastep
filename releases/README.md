@@ -5,7 +5,7 @@ no Actions tab, no unzip.
 
 | File | Built | What it is |
 |---|---|---|
-| **[`terrastep-debug.apk`](terrastep-debug.apk)** | 2026-08-18 **v0.1.4+5** | Foreground service (O11). Uninstall the old build first. Confirm dump says `v0.1.4+5`. |
+| **[`terrastep-debug.apk`](terrastep-debug.apk)** | 2026-08-18 **v0.1.4+5** | Walk 7 FGS build. **Current ship.** Dump must say `v0.1.4+5`. |
 
 ## Install on your phone
 
@@ -16,11 +16,9 @@ no Actions tab, no unzip.
 
 ## What this build is for
 
-Pocket / screen-off walk (threshold 1.8). A persistent
-**Terrastep is tracking** notification must stay up. Leave the phone in
-your pocket 20–30 min, unlock, tap the overlay copy icon. Expect ~1 Hz
-`raw gps` and a non-zero pedometer. Target **&lt;4 %/hr**; stop-and-redesign
-if **&gt;6 %/hr**.
+The Walk 7 build: 1 Hz GPS + persistent **Terrastep is tracking**.
+v0.1.5 (idle sampling) was rolled back. Uninstall v0.1.5 if you
+installed it. Dump first line must be **`v0.1.4+5`**.
 
 Full test checklist: [`../CURRENT_PROGRESS.md`](../CURRENT_PROGRESS.md) §0b
 and [`../app/README.md`](../app/README.md).

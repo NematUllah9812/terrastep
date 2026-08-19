@@ -2,15 +2,16 @@
 
 **Last updated:** 2026-08-18
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **v0.1.4+5 APK** — foreground service built. Walk 6 proved the old APK dies in a pocket. Walk 7 scores 1.8.
+**Latest:** **v0.1.4+5** is the ship again. Walk 7 proved pocket tracking. v0.1.5 idle-sampling was rolled back (owner request). Battery later (O12).
 **Field data:** [`FIELD_REPORT_2026-08-18.md`](FIELD_REPORT_2026-08-18.md)
-**Next:** install `releases/terrastep-debug.apk`, confirm dump `v0.1.4+5` and a live *Terrastep is tracking* notification, then a 20–30 min pocket walk.
+**Next:** Phase 2 (real Supabase) when you want it.
 
 | | |
 |---|---|
-| **Walk 6** | 22:59 elapsed, raw gps **12**, pedometer **0**. FGS was missing. |
-| **v0.1.4+5** | Geolocator FGS + wake lock + notification permission + battery-exemption prompt. 1 Hz, no distance filter. |
-| **1.7** | Still ✅. **1.8** ⬜ until Walk 7. |
+| **Walk 7** | 21:47, raw gps **1289**, accepted **1284**, pedo **765**, **territory 1**, fgs **on**. Same prayer trip as Walk 6. |
+| **v0.1.5** | Idle 20 s / walk 2 s. **Reverted 2026-08-19.** Come back after everything else. |
+| **Battery** | ~8.5 %/hr on 1 Hz. **Deferred (O12).** Not blocking. |
+| **1.7** | ✅. **1.8 tracking** ✅. **1.8 battery** ⏸ parked. |
 
 > **Resuming on a new machine?** Read §0, then `ISSUES_LOG.md` → *Recurring
 > Patterns*. The sandbox is ephemeral — reinstall Postgres and re-set git
@@ -74,23 +75,14 @@ Also available from Actions (rebuilds on every relevant push): repo →
 | Hex ids padded to 15 chars | `BigInt.toRadixString` drops leading zeros; h3-js does not (O9) |
 | MapController guarded until ready | First GPS fix used to crash if the map was not attached |
 
-### What we need from Walk 7 (pocket)
+### Walk 7 (done) + rollback
 
-1. Uninstall the old APK. Install this one. Grant **Location**, **Physical
-   activity**, **Notifications**, and **Unrestricted battery**.
-2. Confirm the overlay dump says `v0.1.4+5` and `fgs on`. A persistent
-   *Terrastep is tracking* notification must be in the shade.
-3. Phone in pocket, screen off, 20–30 min (prayer / a block is fine).
-4. Unlock, tap the overlay **copy** icon, paste.
+Pocket/prayer on **v0.1.4+5**: 1289 GPS (~1 Hz), 765 steps, home hex claimed,
+fgs on. Tracking survival is proven.
 
-| Question | Pass looks like |
-|---|---|
-| `raw gps` after 20 min | hundreds, not ~12 |
-| `last fix` | a few seconds ago, not 20 min ago |
-| pedometer | non-zero if you walked |
-| battery % | record start and end. Target **&lt;4 %/hr**. Stop-and-redesign if **&gt;6 %/hr** |
-
-1.7 (claim + persist) is already done. This walk is **1.8 / 0.3**.
+v0.1.5 (idle 20 s / walk 2 s) shipped then **rolled back** — owner did not
+like the feel. Battery &lt;4 %/hr stays **O12**, not forgotten. Do not
+re-introduce idle sampling until asked.
 
 ---
 
@@ -188,7 +180,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 |---|---|---|---|
 | 0.1 | Flutter + MapLibre basemap + blue dot | 🟡 | **On device** (flutter_map + OSM, not MapLibre — #21). |
 | 0.2 | h3_flutter returns res-9 cell; hexes drawn | 🟡 | **On device.** Cell `89209a0aa73ffff`. Still unverified vs h3-js (O9). |
-| 0.3 | Background location + pedometer, 2 h, screen off | ⬜ | **Code in v0.1.4+5.** Walk 6 failed without FGS. Walk 7 is the test. |
+| 0.3 | Background location + pedometer, 2 h, screen off | 🟡 | **Tracking ✅ Walk 7.** Battery ~8.5 %/hr deferred (O12). |
 
 ### PHASE 1 — Local Prototype *(2 / 8 done)*
 
@@ -201,7 +193,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | 1.5 | Step source | 🟡 | Pedometer matches HUD. Health Connect later. |
 | 1.6 | `SessionAccumulator` + unit tests | ✅ | 27/27. Armchair-claim exploit fixed (#17). |
 | 1.7 | Local claim + persist | ✅ | **Claim + force-quit × N, hex stayed blue.** SharedPreferences, not SQLite. |
-| 1.8 | Background survival, <4%/hr | ⬜ | **FGS shipped in v0.1.4+5.** Awaiting Walk 7. |
+| 1.8 | Background survival, <4%/hr | 🟡 | **Pocket tracking ✅.** Battery gate **parked** (O12). |
 
 ### PHASE 2 — Backend & Persistence *(4 / 9)*
 
@@ -332,14 +324,9 @@ latency target, and **pocket battery (1.8 / Walk 7)**.
 
 **Do these in this order. Nothing else first.**
 
-1. **Foreground service (O11 / threshold 1.8).** Tracking must survive
-   screen-off and a pocketed phone. Then measure drain (also 0.3).
-   Target <4 %/hr; stop-and-redesign if >6 %/hr.
-2. **Deploy to a real Supabase project** (threshold 2.1). ~1 hour.
-3. **Clear the four test-debt items.** ~4 hours.
-
-Phase 1 does **not** exit until 1.8 passes (friend walks a block with
-the app in their pocket). Do not start Phase 2 multiplayer until then.
+1. **Phase 2.1 — real Supabase.** Pocket claim works on v0.1.4+5.
+2. **Test debt** (4.6 / 4.7 / 4.8 / 2.4).
+3. **O12 battery later.** Do not ship idle-sampling again until asked.
 
 **Already in place**
 
@@ -354,6 +341,8 @@ the app in their pocket). Do not start Phase 2 multiplayer until then.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-19 | **Rollback.** v0.1.5+6 reverted. Ship is **v0.1.4+5** again. Battery later (O12). | O12 |
+| 2026-08-18 | **Walk 7.** Pocket/prayer on v0.1.4+5. 1289 GPS, 765 steps, hex claimed, fgs on. | O11 ✅ |
 | 2026-08-18 | **v0.1.4+5.** Geolocator FGS + wake lock + POST_NOTIFICATIONS + battery-exemption. 1 Hz, no distance filter (so a standing prayer test cannot look like a freeze). Dump header + pubspec bumped together. | O11, #31 |
 | 2026-08-18 | **Walk 6.** 23 min pocket/prayer. 12 GPS, 0 steps. 1.8 cannot pass without FGS. | O11 |
 | 2026-08-18 | **1.7 complete.** Claim + persist. Force-quit multiple times, hex stayed blue. | — |

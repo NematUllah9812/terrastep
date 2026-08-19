@@ -340,3 +340,18 @@ Battery 47 % → 44 % over ~20 min mixed screen ≈ **9 %/hr**. Better than full
 2. **Effort / steps from the last hex showing up on the next one.** After a claim, delayed pedometer batches stamped during the old visit have no window left, so they were dumped on the *current* cell. A new hex could open at 140 steps / 90 m with only 18 s of dwell. Orphan steps now drop unless they belong after the new visit started.
 
 One `teleport` reject is expected if the first lock after a car/ride jumps several km (Dhamtour vs home).
+
+---
+
+## Walk 7 — prayer, pocket, FGS (~20:43–21:05)
+
+**Build:** v0.1.4+5. Same trip as Walk 6.
+
+| Time | Elapsed | raw/acc | Pedo | Terr | Batt | Notes |
+|---|---|---|---|---|---|---|
+| 20:43 | 00:32 | 28/28 | 0 | 0 | 24% | fgs on, acc 6.7 m |
+| 21:05 | **21:47** | **1289/1284** | **765** | **1** | 21% | claimed home hex, m/step 0.66, teleport 5 |
+
+**Tracking: PASS.** Walk 6 was 12 GPS / 0 steps. This is ~1 Hz, claim, last fix now.
+
+**Battery ~8.5 %/hr** — over the 4 % target. **Deferred (O12).** v0.1.5 idle-sampling was tried then **rolled back 2026-08-19**. Current ship is v0.1.4+5.
