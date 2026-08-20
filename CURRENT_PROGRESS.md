@@ -49,7 +49,7 @@ Also available from Actions (rebuilds on every relevant push): repo →
 | | |
 |---|---|
 | File | `releases/terrastep-debug.apk` |
-| Version | **v0.1.9+10** (dump first line) |
+| Version | **v0.1.10+11** (dump first line) |
 | Size | 45 MB |
 | ABI | `arm64-v8a` |
 | Signed | Debug (not Play Store) |

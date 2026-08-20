@@ -23,6 +23,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   bool _showDebug = true;
   bool _mapReady = false;
   bool _hydrated = false;
+  bool _sheetOpen = false;
 
   /// How many rings of hexes to draw around the current cell. 2 rings = 19
   /// hexes, which is plenty on screen and cheap to rebuild every fix.
@@ -144,7 +145,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   }
 
   void _onTracker() {
-    if (!mounted) return;
+    if (!mounted || _sheetOpen) return;
     _hydrate();
     final p = widget.tracker.position;
     // MapController throws if used before FlutterMap has attached.
@@ -229,7 +230,13 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
       );
       return;
     }
-    await _editSheet(mine);
+    if (_sheetOpen) return;
+    _sheetOpen = true;
+    try {
+      await _editSheet(mine);
+    } finally {
+      _sheetOpen = false;
+    }
   }
 
   static const _palette = <String>[
@@ -242,99 +249,20 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   ];
 
   Future<void> _editSheet(ClaimedCell cell) async {
-    final nameCtl = TextEditingController(text: cell.name ?? '');
-    var color = cell.color ?? '#3B82F6';
-    await showModalBottomSheet<void>(
+    final result = await showModalBottomSheet<({String name, String color})>(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF0B1220),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 16,
-            bottom: 24 + MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: StatefulBuilder(
-            builder: (ctx, setLocal) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Name this hex',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(cell.cellId,
-                    style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF64748B))),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameCtl,
-                  maxLength: 32,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    hintText: 'Hilltop',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final hex in _palette)
-                      GestureDetector(
-                        onTap: () => setLocal(() => color = hex),
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: _hexColor(hex),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: color == hex
-                                  ? Colors.white
-                                  : Colors.white24,
-                              width: color == hex ? 3 : 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () async {
-                    final name = nameCtl.text.trim();
-                    if (name.isEmpty) return;
-                    Navigator.pop(ctx);
-                    final err = await CloudSync.updateTerritory(
-                      cellId: cell.cellId,
-                      name: name,
-                      color: color,
-                    );
-                    if (!mounted) return;
-                    if (err != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Rename failed: $err')),
-                      );
-                      return;
-                    }
-                    widget.tracker.setHexStyle(cell.cellId,
-                        name: name, color: color);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Saved “$name”')),
-                    );
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (ctx) => _HexEditSheet(cell: cell),
     );
-    nameCtl.dispose();
+    if (!mounted || result == null) return;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+    widget.tracker.setHexStyle(cell.cellId,
+        name: result.name, color: result.color);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saved “${result.name}”')),
+    );
   }
 
   /// Build the hex polygons: the ring around the player, coloured by state.
