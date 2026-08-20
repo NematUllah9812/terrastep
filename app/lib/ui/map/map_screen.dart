@@ -361,18 +361,20 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
       }
       if (pts.length < 3) continue;
 
-      final isMine = t.claimed.containsKey(id);
+      final mine = t.claimed[id];
+      final isMine = mine != null;
       final isCurrent = id == cell;
+      final fill = _hexColor(mine?.color) ?? const Color(0xFF3B82F6);
 
       polys.add(Polygon(
         points: pts,
         color: isMine
-            ? const Color(0xFF3B82F6).withValues(alpha: 0.45)
+            ? fill.withValues(alpha: 0.45)
             : isCurrent
                 ? const Color(0xFFF59E0B).withValues(alpha: 0.18)
                 : Colors.white.withValues(alpha: 0.04),
         borderColor: isMine
-            ? const Color(0xFF3B82F6)
+            ? fill
             : isCurrent
                 ? const Color(0xFFF59E0B)
                 : Colors.white24,
@@ -479,6 +481,127 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
               if (pp != null) _map.move(LatLng(pp.lat, pp.lng), 17);
             },
             child: const Icon(Icons.my_location, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HexEditSheet extends StatefulWidget {
+  final ClaimedCell cell;
+  const _HexEditSheet({required this.cell});
+
+  @override
+  State<_HexEditSheet> createState() => _HexEditSheetState();
+}
+
+class _HexEditSheetState extends State<_HexEditSheet> {
+  late final TextEditingController _name;
+  late String _color;
+  bool _busy = false;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.cell.name ?? '');
+    _color = (widget.cell.color ?? '#3B82F6').toUpperCase();
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _name.text.trim();
+    if (name.isEmpty || _busy) return;
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    final color = _color.toLowerCase();
+    final err = await CloudSync.updateTerritory(
+      cellId: widget.cell.cellId,
+      name: name,
+      color: color,
+    );
+    if (!mounted) return;
+    if (err != null) {
+      setState(() {
+        _busy = false;
+        _err = err;
+      });
+      return;
+    }
+    Navigator.pop(context, (name: name, color: color));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: 24 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Name this hex',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(widget.cell.cellId,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _name,
+            maxLength: 32,
+            enabled: !_busy,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              hintText: 'Hilltop',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final hex in _MapScreenState._palette)
+                GestureDetector(
+                  onTap: _busy
+                      ? null
+                      : () => setState(() => _color = hex.toUpperCase()),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: _MapScreenState._hexColor(hex),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _color.toUpperCase() == hex.toUpperCase()
+                            ? Colors.white
+                            : Colors.white24,
+                        width: _color.toUpperCase() == hex.toUpperCase() ? 3 : 1,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (_err != null) ...[
+            const SizedBox(height: 8),
+            Text(_err!, style: const TextStyle(color: Color(0xFFFCA5A5))),
+          ],
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: Text(_busy ? 'Saving…' : 'Save'),
           ),
         ],
       ),

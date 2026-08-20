@@ -49,7 +49,7 @@ Also available from Actions (rebuilds on every relevant push): repo →
 | | |
 |---|---|
 | File | `releases/terrastep-debug.apk` |
-| Version | **v0.1.8+9** (dump first line) |
+| Version | **v0.1.9+10** (dump first line) |
 | Size | 45 MB |
 | ABI | `arm64-v8a` |
 | Signed | Debug (not Play Store) |
@@ -358,6 +358,7 @@ parked, not forgotten.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-20 | **v0.1.9+10.** Fix 2.9 crash (`dependents.isEmpty`) and hex fill ignoring saved colour. | 2.9 |
 | 2026-08-20 | **v0.1.8+9.** Long-press own hex → rename + colour (`update_territory`). | 2.9 |
 | 2026-08-20 | **2.8 done.** Uninstall → login → home hex `89209a0aa73ffff` still blue. `sync ok claimed`. | 2.8 |
 | 2026-08-20 | **v0.1.7+8.** Sign out + `claim_cells` upload + hydrate. SQL harden (no st_point / realtime abort). | 2.2, 2.6 |

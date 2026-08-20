@@ -98,7 +98,7 @@ class CloudSync {
       params: {
         'p_cell_id': cellId,
         'p_name': name,
-        'p_color': color,
+        'p_color': color?.toLowerCase(),
       },
     );
     if (res is Map) {
