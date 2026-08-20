@@ -206,7 +206,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | 1.7 | Local claim + persist | ✅ | **Claim + force-quit × N, hex stayed blue.** SharedPreferences, not SQLite. |
 | 1.8 | Background survival, <4%/hr | 🟡 | **Pocket tracking ✅.** Battery &lt;4 %/hr **deferred** (O12). |
 
-### PHASE 2 — Backend & Persistence *(4 / 9)*
+### PHASE 2 — Backend & Persistence *(6 / 9 done, 3 partial)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
