@@ -95,13 +95,31 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     try {
       final res = await CloudSync.upload(visits);
       if (!mounted) return;
-      widget.tracker.setSync(res == null
+      final msg = res == null
           ? 'skipped'
           : res.ok
               ? 'ok ${res.results.map((r) => r.outcome).join(',')}'
-              : (res.error ?? 'fail'));
+              : (res.error ?? 'fail');
+      widget.tracker.setSync(msg);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cloud: $msg'),
+          backgroundColor: (res != null && res.ok)
+              ? const Color(0xFF16A34A)
+              : const Color(0xFFB91C1C),
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } catch (e) {
       widget.tracker.setSync(e.toString());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cloud failed: $e'),
+          backgroundColor: const Color(0xFFB91C1C),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
 

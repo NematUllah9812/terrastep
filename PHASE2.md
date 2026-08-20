@@ -29,10 +29,24 @@ Done on project `iaoqwxcyjkpvpqwoszih`:
 - REST: `get_cells_in_view` returns `[]`. `claim_cells` is **denied to anon** (correct).
 - Redirect added: `io.terrastep.app://login-callback/`
 
-**2.2 proven (2026-08-19):** magic link, session persist across restart,
-one Auth user for `khannmat12@gmail.com`. Uninstall wipes **local** hexes —
-server had nothing to restore. Sign out was missing; added in v0.1.7+8
-along with first `claim_cells` upload + `get_cells_in_view` hydrate.
+**2.2 proven (2026-08-19):** magic link, session persist, sign-out.
+One Auth user (`walker_cda70d49`). Sign-out → sign-in keeping the hex is
+**local only** — `territories` was still empty.
+
+**2.6 blocker:** `claim_cells` likely aborted the whole transaction
+(`st_point` / `realtime.send`). Patched in `02_CLAIM_ENGINE.sql`:
+centroid is null, realtime is try/catch, `max_accuracy_m` 35→80.
+
+**You (SQL Editor):** paste **updated** `02_CLAIM_ENGINE.sql` → Run
+(`create or replace` is safe). Then:
+
+```sql
+select cfg('max_accuracy_m');          -- expect 80
+select count(*) from public.territories;
+```
+
+When the email cap lifts: log in on v0.1.7+8, walk a hex, overlay `sync`
+must show `ok claimed`. Then uninstall is the 2.8 test.
 
 **Never paste the `service_role` / `sb_secret_` key into chat or git.**  
 The anon/publishable key is enough for the app. CI rejects raw JWTs, so the

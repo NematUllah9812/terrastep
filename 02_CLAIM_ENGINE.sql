@@ -130,7 +130,7 @@ create or replace function public.claim_cells(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user        uuid := auth.uid();
@@ -320,7 +320,7 @@ begin
       values
         (v_cell_id, cfg('h3_resolution')::smallint, v_parent5, v_user, v_my_inf, now(),
          now(), now(), 1,
-         st_point((v_cell->>'lng')::float8, (v_cell->>'lat')::float8)::geography)
+         null)  -- centroid optional; st_point needs PostGIS on search_path
       on conflict (cell_id) do update
         set owner_id = v_user, owner_influence = v_my_inf, influence_at = now(),
             last_claim_at = now(), claim_count = territories.claim_count + 1;
@@ -413,19 +413,23 @@ begin
    where p.id = v_user;
 
   ------------------------------------------------------------- realtime
-  -- Broadcast ONE message per affected region, not per cell.
-  perform realtime.send(
-      jsonb_build_object('type','cells_changed','cells', region_cells),
-      'cells_changed',
-      'region:' || region_key,
-      false                                   -- not private
-    )
-  from (
-    select c->>'parent_res5' as region_key,
-           jsonb_agg(c)      as region_cells
-      from jsonb_array_elements(v_changed) as c
-     group by 1
-  ) grouped;
+  -- Phase 3. Must never abort a successful claim if realtime is missing (O2).
+  begin
+    perform realtime.send(
+        jsonb_build_object('type','cells_changed','cells', region_cells),
+        'cells_changed',
+        'region:' || region_key,
+        false
+      )
+    from (
+      select c->>'parent_res5' as region_key,
+             jsonb_agg(c)      as region_cells
+        from jsonb_array_elements(v_changed) as c
+       group by 1
+    ) grouped;
+  exception when others then
+    raise notice 'realtime.send skipped: %', sqlerrm;
+  end;
 
   -------------------------------------------------------------- receipt
   v_cached := jsonb_build_object(
@@ -602,3 +606,9 @@ begin
 
   return jsonb_build_object('ok', true, 'cells_reverted', v_cells);
 end $$;
+
+
+-- Match the client GPS gate (Abbottabad fused lock is often >35 m).
+update public.game_config
+   set value = 80, description = 'GPS fixes worse than this are dropped (aligned with client)'
+ where key = 'max_accuracy_m';
