@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:terrastep_core/domain/session_accumulator.dart';
 
 import '../../app_version.dart';
-import '../../config/supabase_env.dart';
+import '../../services/cloud_sync.dart';
 import '../../services/location_service.dart';
 import '../../services/tracking_coordinator.dart';
 
@@ -102,17 +101,7 @@ class _DebugOverlayState extends State<DebugOverlay> {
   bool get _weakLock =>
       tracker.lastAccuracy != null && tracker.lastAccuracy! > 50;
 
-  /// First-line proof that this APK has a session (or is offline).
-  String get _authLabel {
-    if (!SupabaseEnv.configured) return 'no-key';
-    try {
-      final u = Supabase.instance.client.auth.currentUser;
-      if (u == null) return 'offline';
-      return u.email ?? u.id.substring(0, 8);
-    } catch (_) {
-      return 'offline';
-    }
-  }
+  String get _authLabel => CloudSync.authLabel();
 
   String _dump() {
     final v = tracker.currentVisit;
@@ -138,7 +127,8 @@ class _DebugOverlayState extends State<DebugOverlay> {
       ..writeln('gps src ${tracker.usingLocationManager ? 'chip' : 'fused'}')
       ..writeln('last fix $_lastFixAge')
       ..writeln('motion ${tracker.motion.name}')
-      ..writeln('territory ${tracker.claimed.length} hexes');
+      ..writeln('territory ${tracker.claimed.length} hexes')
+      ..writeln('sync ${tracker.lastSync ?? '—'}');
     if (tracker.rejections.isNotEmpty) {
       buf.writeln('rejected:');
       for (final e in tracker.rejections.entries) {
@@ -146,6 +136,29 @@ class _DebugOverlayState extends State<DebugOverlay> {
       }
     }
     return buf.toString();
+  }
+
+  Future<void> _signOut() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+          'You will need a new magic link to sign back in. '
+          'Local hexes on this phone stay until you uninstall.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sign out')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await CloudSync.signOut();
   }
 
   Future<void> _copy() async {
@@ -252,12 +265,23 @@ class _DebugOverlayState extends State<DebugOverlay> {
             _row('gps src', tracker.usingLocationManager ? 'chip' : 'fused'),
             _row('territory', '${tracker.claimed.length} hexes'),
             _row('auth', _authLabel),
+            _row('sync', tracker.lastSync ?? '—'),
             _row('battery', _batteryLabel),
             _row('elapsed', _elapsed),
             _row('error', _errorLabel,
                 valueColor: _errorLabel == 'none'
                     ? null
                     : const Color(0xFFFCA5A5)),
+            if (CloudSync.signedIn) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _signOut,
+                  child: const Text('Sign out'),
+                ),
+              ),
+            ],
             if (rej.isNotEmpty) ...[
               const Divider(height: 14, color: Color(0xFF243352)),
               const Text('REJECTED FIXES',

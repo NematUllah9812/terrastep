@@ -9,11 +9,11 @@ Do these in order. Do not skip ahead to multiplayer (Phase 3).
 
 ```
   2.1  Real Supabase + apply SQL          ← done 2026-08-19 (cfg → 9, redirect added)
-  2.2  Auth (magic link)                  ← APK v0.1.6+7 built. Device test next.
+  2.2  Auth (magic link)                  ← proven 2026-08-19. Sign out in v0.1.7+8.
   2.3  Profile auto-create                ← already in 01_DATA_MODEL.sql
   2.4  RLS hostile test                   ← after login, with a real JWT
   2.5  claim_cells on the real project    ← RPC live (anon correctly denied)
-  2.6  Outbox → real RPC                  ← client already has SyncWorker
+  2.6  Outbox → real RPC                  ← v0.1.7+8 uploads on claim (best-effort)
   2.7  get_cells_in_view                  ← RPC live (empty view)
   2.8  Map draws SERVER hexes             ← two phones agree
   2.9  Rename / recolour own hex          ← SQL already written
@@ -29,9 +29,10 @@ Done on project `iaoqwxcyjkpvpqwoszih`:
 - REST: `get_cells_in_view` returns `[]`. `claim_cells` is **denied to anon** (correct).
 - Redirect added: `io.terrastep.app://login-callback/`
 
-**2.2 APK:** `releases/terrastep-debug.apk` is **v0.1.6+7**. Dump first line
-must say that. Same FGS tracking as Walk 7. Login screen + Continue offline.
-Magic link not yet proven on a phone.
+**2.2 proven (2026-08-19):** magic link, session persist across restart,
+one Auth user for `khannmat12@gmail.com`. Uninstall wipes **local** hexes —
+server had nothing to restore. Sign out was missing; added in v0.1.7+8
+along with first `claim_cells` upload + `get_cells_in_view` hydrate.
 
 **Never paste the `service_role` / `sb_secret_` key into chat or git.**  
 The anon/publishable key is enough for the app. CI rejects raw JWTs, so the

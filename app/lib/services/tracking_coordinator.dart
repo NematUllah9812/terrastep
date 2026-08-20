@@ -177,13 +177,42 @@ class TrackingCoordinator extends ChangeNotifier {
         onCellClaimed?.call(v.cellId);
       }
     }
-    // Phase 2: enqueue to the outbox here instead of dropping.
+    onClaimedVisits?.call(List<CellVisit>.from(ready));
     accumulator.markSubmitted(ready);
     _saveClaimed();
   }
 
   /// Fired on a new claim, for the celebration animation + haptic.
   void Function(String cellId)? onCellClaimed;
+
+  /// Phase 2: the visits just claimed, so the app can upload them.
+  /// Local persist already happened; cloud is best-effort.
+  void Function(List<CellVisit> visits)? onClaimedVisits;
+
+  String? lastSync;
+
+  void setSync(String? value) {
+    lastSync = value;
+    notifyListeners();
+  }
+
+  /// Merge hexes the server says we own (reinstall / second phone).
+  void mergeServerClaims(Iterable<String> cellIds) {
+    var added = false;
+    for (final id in cellIds) {
+      if (_claimed.containsKey(id)) continue;
+      _claimed[id] = ClaimedCell(
+        cellId: id,
+        claimedAt: DateTime.now(),
+        effort: 0,
+      );
+      added = true;
+    }
+    if (added) {
+      _saveClaimed();
+      notifyListeners();
+    }
+  }
 
   double get currentProgress {
     final v = currentVisit;

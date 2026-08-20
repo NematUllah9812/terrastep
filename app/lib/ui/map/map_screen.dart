@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:terrastep_core/domain/models/cell_visit.dart';
 
+import '../../services/cloud_sync.dart';
 import '../../services/tracking_coordinator.dart';
 import '../widgets/debug_overlay.dart';
 import '../widgets/progress_card.dart';
@@ -20,6 +22,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   bool _followMe = true;
   bool _showDebug = true;
   bool _mapReady = false;
+  bool _hydrated = false;
 
   /// How many rings of hexes to draw around the current cell. 2 rings = 19
   /// hexes, which is plenty on screen and cheap to rebuild every fix.
@@ -31,6 +34,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     widget.tracker.addListener(_onTracker);
     widget.tracker.onCellClaimed = _celebrate;
+    widget.tracker.onClaimedVisits = _uploadClaims;
   }
 
   @override
@@ -45,8 +49,85 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && mounted) setState(() {});
   }
 
+  Future<void> _accountSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0B1220),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Account',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(CloudSync.authLabel(),
+                  style: const TextStyle(color: Color(0xFF8FA3C4))),
+              const SizedBox(height: 8),
+              const Text(
+                'Hexes live on this phone until a claim uploads. '
+                'Uninstall wipes local hexes. Same account, empty map = '
+                'nothing was on the server yet.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await CloudSync.signOut();
+                },
+                child: const Text('Sign out'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadClaims(List<CellVisit> visits) async {
+    if (!CloudSync.signedIn) {
+      widget.tracker.setSync('offline');
+      return;
+    }
+    try {
+      final res = await CloudSync.upload(visits);
+      if (!mounted) return;
+      widget.tracker.setSync(res == null
+          ? 'skipped'
+          : res.ok
+              ? 'ok ${res.results.map((r) => r.outcome).join(',')}'
+              : (res.error ?? 'fail'));
+    } catch (e) {
+      widget.tracker.setSync(e.toString());
+    }
+  }
+
+  Future<void> _hydrate() async {
+    if (_hydrated || !CloudSync.signedIn) return;
+    final cell = widget.tracker.currentCell;
+    if (cell == null) return;
+    try {
+      final ids = {
+        ...widget.tracker.indexer.disk(cell, 4),
+        ...widget.tracker.claimed.keys,
+      }.toList();
+      final mine = await CloudSync.myCells(ids);
+      if (!mounted) return;
+      _hydrated = true;
+      widget.tracker.mergeServerClaims(mine);
+      widget.tracker.setSync(
+          mine.isEmpty ? 'cloud 0 hexes' : 'cloud ${mine.length} hexes');
+    } catch (e) {
+      widget.tracker.setSync('hydrate: $e');
+    }
+  }
+
   void _onTracker() {
     if (!mounted) return;
+    _hydrate();
     final p = widget.tracker.position;
     // MapController throws if used before FlutterMap has attached.
     if (_mapReady && _followMe && p != null) {
@@ -181,6 +262,15 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (CloudSync.signedIn) ...[
+            FloatingActionButton.small(
+              heroTag: 'account',
+              backgroundColor: const Color(0xFF1D2B4A),
+              onPressed: _accountSheet,
+              child: const Icon(Icons.person, color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+          ],
           FloatingActionButton.small(
             heroTag: 'debug',
             backgroundColor: const Color(0xFF1D2B4A),

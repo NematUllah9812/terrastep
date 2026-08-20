@@ -9,9 +9,8 @@ here.** This file is the work queue: a box is checked only when the
 acceptance test has actually been run. Code that compiles but has not
 been walked is still unchecked.
 
-**Where we are (2026-08-19):** **Phase 2.** Schema on project
-`iaoqwxcyjkpvpqwoszih` (`cfg` → 9). Login APK **v0.1.6+7** (FGS same as
-Walk 7). Battery parked (O12). Next: tap a magic link on the phone.
+**Where we are (2026-08-20):** **Phase 2.** Login proven. v0.1.7+8 adds
+Sign out + first cloud upload. Battery parked (O12).
 
 ---
 
