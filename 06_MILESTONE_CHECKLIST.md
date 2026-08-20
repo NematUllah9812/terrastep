@@ -9,8 +9,8 @@ here.** This file is the work queue: a box is checked only when the
 acceptance test has actually been run. Code that compiles but has not
 been walked is still unchecked.
 
-**Where we are (2026-08-20):** **Phase 2 player loop done** (2.8 + 2.9).
-Leftover: 2.4 RLS, 2.6 airplane. Battery parked (O12).
+**Where we are (2026-08-20):** **Phase 2 player loop done.** Phase 3 map:
+[`PHASE3.md`](PHASE3.md). Ship **v0.1.10+11**. Battery parked (O12).
 
 ---
 

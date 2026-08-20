@@ -2,10 +2,10 @@
 
 **Last updated:** 2026-08-20
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **Phase 2 player loop DONE.** 2.8 restore + 2.9 name/colour on **v0.1.10+11**. Battery parked (O12).
+**Latest:** **Phase 2 player loop DONE.** Next work map: [`PHASE3.md`](PHASE3.md). Ship **v0.1.10+11**. Battery parked (O12).
 **Field data:** [`FIELD_REPORT_2026-08-19.md`](FIELD_REPORT_2026-08-19.md)
 **Phase 2 map:** [`PHASE2.md`](PHASE2.md)
-**Next:** 2.4 RLS, or Phase 3 if you want two-phone contests.
+**Server (2026-08-20):** **2 hexes** — Home `#06b6d4`, T1 `#ef4444`. `cells_owned` still 0.
 
 | | |
 |---|---|
@@ -113,6 +113,7 @@ Everything needed to continue is committed. No local state matters.
 | `04_ANTI_CHEAT.md` | Threat model, 4 defence layers |
 | `05_COST_MODEL.md` | Free-tier ceilings, upgrade triggers |
 | `06_MILESTONE_CHECKLIST.md` | 45 thresholds + acceptance tests (the work queue) |
+| **`PHASE3.md`** | **Phase 3 work map — start here for multiplayer** |
 | **`CURRENT_PROGRESS.md`** | **This file — status against the queue** |
 | **`ISSUES_LOG.md`** | **Every blocker, how it was fixed, open items** |
 | `SECURITY.md` | Credential handling rules |
@@ -336,8 +337,8 @@ latency target, and **pocket battery (1.8 / Walk 7)**.
 
 **Do these in this order. Nothing else first.**
 
-1. **Phase 2 player loop is done.** Optional leftovers: 2.4 RLS, 2.6 airplane sync, `cells_owned` = 0.
-2. **Phase 3** when you want two phones / live contests. Do not start it by accident.
+1. **Phase 3** — [`PHASE3.md`](PHASE3.md). First code: draw **other** players’ hexes (3.0), then region subscribe (3.1).
+2. Phase 2 leftovers (do not block 3.0): 2.4 RLS, 2.6 airplane, `cells_owned` = 0.
 3. **O12 battery later.** Do not reintroduce idle sampling until asked.
 
 Pocket hex-fill (Phase 1 exit *loop*) is proven. The &lt;4 %/hr number is
@@ -356,6 +357,7 @@ parked, not forgotten.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-20 | **Phase 3 map opened** (`PHASE3.md`). Server: 2 hexes (Home cyan, T1 red). | 3.0 |
 | 2026-08-20 | **2.9 done.** Home named, colour changes on v0.1.10+11. Phase 2 player loop complete. | 2.9 |
 | 2026-08-20 | **v0.1.10+11.** Wire the safe rename sheet; freeze map while open. | 2.9 |
 | 2026-08-20 | **v0.1.9+10.** Fix 2.9 crash (`dependents.isEmpty`) and hex fill ignoring saved colour. | 2.9 |

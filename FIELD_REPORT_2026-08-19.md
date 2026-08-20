@@ -86,3 +86,12 @@ Server row: `89209a0aa73ffff` owner `cda70d49-…` / `walker_cda70d49`.
 On device: hex named **Home**, colour can be changed. Territory still on the account after reinstall. Save crash fixed on this build.
 
 **Phase 2 player loop ✅** (claim, cloud, restore, name/colour).
+
+### Server snapshot 2026-08-20 (REST)
+
+| Hex | Name | Colour | Influence |
+|---|---|---|---|
+| `89209a0aa73ffff` | Home | `#06b6d4` cyan | 1587.50 |
+| `89209a0aa0fffff` | T1 | `#ef4444` red | 214.90 |
+
+Owner `walker_cda70d49`. `profiles.cells_owned` still 0.

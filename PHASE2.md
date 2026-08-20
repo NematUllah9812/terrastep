@@ -54,9 +54,10 @@ Save crash is fixed on this build.
 
 **Phase 2 player loop is DONE.** Claim → cloud → uninstall restore → name/colour.
 
-Still not 9/9: **2.4** RLS hostile test, **2.6** airplane/outbox durability,
-`cells_owned` still 0, no Google/Apple. Do not start Phase 3 until you want
-live contests.
+Still not 9/9: **2.4** RLS, **2.6** airplane, `cells_owned` still 0, no OAuth.
+
+**Phase 3 is open.** Work map: [`PHASE3.md`](PHASE3.md). First code is draw
+other players’ hexes — the map only paints `is_mine` today.
 
 **Never paste the `service_role` / `sb_secret_` key into chat or git.**  
 The anon/publishable key is enough for the app. CI rejects raw JWTs, so the
