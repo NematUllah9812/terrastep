@@ -141,4 +141,4 @@ select * from pg_available_extensions where name like 'h3%';
 ≈ 5 months part-time at 12 h/week.
 
 **Phase 2 player loop is done.** Phase 3 map: [`PHASE3.md`](PHASE3.md).
-Ship APK is **v0.1.7+8**. Battery later (O12).
+Ship APK is **v0.1.10+11**. Battery later (O12).
