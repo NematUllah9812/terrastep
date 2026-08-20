@@ -1,11 +1,11 @@
 # Terrastep — Current Progress
 
-**Last updated:** 2026-08-19
+**Last updated:** 2026-08-20
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **Phase 2.** Login proven. **v0.1.7+8** = Sign out + first cloud upload. Battery parked (O12).
+**Latest:** **2.8 done.** Uninstall → login → home hex still blue. Ship **v0.1.7+8**. Battery parked (O12).
 **Field data:** [`FIELD_REPORT_2026-08-19.md`](FIELD_REPORT_2026-08-19.md)
 **Phase 2 map:** [`PHASE2.md`](PHASE2.md)
-**Next:** install v0.1.7+8. Dump first line `0.1.7+8`. Person icon / overlay **Sign out**. Walk a hex while signed in; `sync` should not stay `—`.
+**Next:** 2.9 rename / recolour own hex. Then 2.4 RLS.
 
 | | |
 |---|---|
@@ -174,7 +174,7 @@ pocket (Walk 7). Battery &lt;4 %/hr is **deferred** (O12), not failed-and-forgot
 | Database schema | ✅ Written + verified deploys |
 | Claim / contest / decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
-| Supabase deployment | 🟡 Schema + RPCs live. Magic link proven. Claims not yet restored after uninstall. |
+| Supabase deployment | 🟡 Schema + RPCs live. Magic link + cloud hex restore proven. `cells_owned` still 0. |
 | Flutter app | 🟡 Claims + persist + FGS on Android. No iOS. |
 | Real GPS / steps / battery | 🟡 Pocket claim proven (Walk 7). Battery %/hr deferred (O12). |
 | Store submission | ❌ Not started |
@@ -211,14 +211,14 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | # | Threshold | Status | Note |
 |---|---|---|---|
 | 2.1 | Supabase project + schema applied | ✅ | **On `iaoqwxcyjkpvpqwoszih`.** `cfg` → 9. Redirect added. Extensions commented (ok). |
-| 2.2 | Auth (magic link + OAuth) | 🟡 | **On device.** Magic link + restart persist. Sign out ships in v0.1.7+8. No OAuth yet. |
-| 2.3 | Profile auto-creation trigger | ✅ | `on_auth_user_created`; exercised by fixtures |
+| 2.2 | Auth (magic link + OAuth) | 🟡 | Magic link + sign-out + restart persist. No Google/Apple. |
+| 2.3 | Profile auto-creation trigger | ✅ | `walker_cda70d49` exists. Counters stuck at 0 (trigger). |
 | 2.4 | RLS hostile test | 🟡 | Policies written. Hostile test needs a real JWT. |
-| 2.5 | `claim_cells` RPC | ✅ | 48 assertions, including all 5 required rejections |
-| 2.6 | Outbox + sync worker | 🟡 | v0.1.7+8 calls `claim_cells` on local claim. Not durable SQLite yet. |
-| 2.7 | `get_cells_in_view` | ✅ | Written; not load-tested for <200 ms |
-| 2.8 | Server-driven map render | 🟡 | Hydrate on login (empty until a claim uploads). |
-| 2.9 | Naming + colour | ✅ | `update_territory` + auth checks (I1–I4) |
+| 2.5 | `claim_cells` RPC | ✅ | Live: dump `sync ok claimed`. Home hex on server. |
+| 2.6 | Outbox + sync worker | 🟡 | Upload on claim works. Not durable SQLite / airplane test. |
+| 2.7 | `get_cells_in_view` | ✅ | Hydrate used it on reinstall. |
+| 2.8 | Server-driven map render | ✅ | **Uninstall → login → `89209a0aa73ffff` still blue.** |
+| 2.9 | Naming + colour | 🟡 | SQL `update_territory` exists. No long-press UI. |
 
 ### PHASE 3 — Multiplayer *(2 / 8)*
 
@@ -258,14 +258,14 @@ All ⬜. Not started.
 |---|---|---|---|---|
 | 0 — Spike | 0 | 2 | 1 | 3 |
 | 1 — Prototype | 2 | 5 | 1 | 8 |
-| 2 — Backend | 5 | 4 | 0 | 9 |
+| 2 — Backend | 6 | 3 | 0 | 9 |
 | 3 — Multiplayer | 2 | 4 | 2 | 8 |
 | 4 — Anti-cheat | 3 | 4 | 1 | 8 |
 | 5 — Launch | 0 | 0 | 9 | 9 |
-| **Total** | **12** | **19** | **14** | **45** |
+| **Total** | **13** | **18** | **14** | **45** |
 
-**Fully complete: 12 / 45 (27%).**
-Partials at half credit: 21.5 / 45 (**~48%**).
+**Fully complete: 13 / 45 (29%).**
+Partials at half credit: 22 / 45 (**~49%**).
 
 1.7 is the first on-device acceptance test that fully passed.
 
@@ -336,9 +336,11 @@ latency target, and **pocket battery (1.8 / Walk 7)**.
 
 **Do these in this order. Nothing else first.**
 
-1. **You:** install **v0.1.7+8**. Dump first line must match. Person icon → **Sign out**. Walk a hex signed in; overlay `sync` should show a server outcome.
-2. **Then:** reinstall, log in, hex should come back from the server (2.8).
-3. **O12 battery later.** Do not reintroduce idle sampling until asked.
+1. **2.9** Long-press own hex → rename + recolour → persists on server.
+2. **2.4** RLS hostile test with a real JWT.
+3. Fix `profiles.cells_owned` still 0 (trigger overwrites RPC counters).
+4. **O12 battery later.** Do not reintroduce idle sampling until asked.
+5. Do **not** start Phase 3 realtime until 2.9 is on a phone.
 
 Pocket hex-fill (Phase 1 exit *loop*) is proven. The &lt;4 %/hr number is
 parked, not forgotten.
@@ -356,6 +358,8 @@ parked, not forgotten.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-20 | **2.8 done.** Uninstall → login → home hex `89209a0aa73ffff` still blue. `sync ok claimed`. | 2.8 |
+| 2026-08-20 | **v0.1.7+8.** Sign out + `claim_cells` upload + hydrate. SQL harden (no st_point / realtime abort). | 2.2, 2.6 |
 | 2026-08-19 | **v0.1.6+7.** Login screen + magic-link deep link. Anon key via dart-define (not committed). FGS unchanged. | 2.2 |
 | 2026-08-19 | **2.1 done.** Schema + RPCs on `iaoqwxcyjkpvpqwoszih`. `cfg` → 9. Redirect added. | 2.1 |
 | 2026-08-19 | **Phase 2 opened.** Project `iaoqwxcyjkpvpqwoszih`. Login screen + `PHASE2.md`. | 2.1 |

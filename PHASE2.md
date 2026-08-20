@@ -8,15 +8,15 @@
 Do these in order. Do not skip ahead to multiplayer (Phase 3).
 
 ```
-  2.1  Real Supabase + apply SQL          ← done 2026-08-19 (cfg → 9, redirect added)
-  2.2  Auth (magic link)                  ← proven 2026-08-19. Sign out in v0.1.7+8.
-  2.3  Profile auto-create                ← already in 01_DATA_MODEL.sql
-  2.4  RLS hostile test                   ← after login, with a real JWT
-  2.5  claim_cells on the real project    ← RPC live (anon correctly denied)
-  2.6  Outbox → real RPC                  ← v0.1.7+8 uploads on claim (best-effort)
-  2.7  get_cells_in_view                  ← RPC live (empty view)
-  2.8  Map draws SERVER hexes             ← two phones agree
-  2.9  Rename / recolour own hex          ← SQL already written
+  2.1  Real Supabase + apply SQL          ← done
+  2.2  Auth (magic link)                  ← done (no Google/Apple yet)
+  2.3  Profile auto-create                ← done (walker_cda70d49). cells_owned still 0 — trigger bug
+  2.4  RLS hostile test                   ← next-but-one, with a real JWT
+  2.5  claim_cells on the real project    ← done. sync ok claimed
+  2.6  Outbox → real RPC                  ← first cut (upload on claim). Not durable SQLite
+  2.7  get_cells_in_view                  ← done (hydrate used it)
+  2.8  Map draws SERVER hexes             ← done 2026-08-20. Uninstall → login → hex back
+  2.9  Rename / recolour own hex          ← NEXT. SQL exists, no UI
 ```
 
 ## 2.1 status (2026-08-19)
@@ -45,8 +45,12 @@ select cfg('max_accuracy_m');          -- expect 80
 select count(*) from public.territories;
 ```
 
-When the email cap lifts: log in on v0.1.7+8, walk a hex, overlay `sync`
-must show `ok claimed`. Then uninstall is the 2.8 test.
+**2.8 proven (2026-08-20):** dump `sync ok claimed`. Server row
+`89209a0aa73ffff` owner `walker_cda70d49`. Uninstall → reinstall → magic
+link → hex still there. Same-phone reinstall counts as device B.
+
+**Next:** 2.9 long-press own hex → rename + colour. Then 2.4 RLS. Do not
+start Phase 3 realtime until 2.9 is on a phone.
 
 **Never paste the `service_role` / `sb_secret_` key into chat or git.**  
 The anon/publishable key is enough for the app. CI rejects raw JWTs, so the
@@ -57,7 +61,7 @@ not committed.
 
 - Knows the project URL.
 - Login screen: email magic link, plus **Continue offline** (Walk 7 still works).
-- After login, same map as Phase 1. Cloud sync is 2.6 / 2.8 — next.
+- After login, map hydrates from `get_cells_in_view`. Claims upload via `claim_cells`.
 
 ## Do not do yet
 

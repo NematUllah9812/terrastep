@@ -9,8 +9,8 @@ here.** This file is the work queue: a box is checked only when the
 acceptance test has actually been run. Code that compiles but has not
 been walked is still unchecked.
 
-**Where we are (2026-08-20):** **Phase 2.** Login proven. v0.1.7+8 adds
-Sign out + first cloud upload. Battery parked (O12).
+**Where we are (2026-08-20):** **2.8 done.** Cloud hex survives uninstall.
+Next: 2.9 rename/colour. Battery parked (O12).
 
 ---
 

@@ -41,3 +41,40 @@ rejected    poor acc 1
 | Tracking | ✅ FGS on, 1 Hz, 3.7 m, fused |
 
 Same UID does **not** restore hexes until we upload `claim_cells` and draw `get_cells_in_view`. That is the next APK (v0.1.7+8): Sign out + first upload/hydrate.
+
+---
+
+## 2026-08-20 — 2.8 (v0.1.7+8)
+
+Dump after a signed-in walk (SQL patch applied):
+
+```
+Terrastep debug  0.1.7+8
+auth khannmat12@gmail.com · walker_cda70d49
+elapsed 03:04   battery 71%
+cell 89209a0aa73ffff
+steps 24 / 120
+distance 19.5 m / 80
+dwell 7 s / 90
+fixes 16 / 5
+m/step 0.81
+gps acc 3.3 m
+raw gps 176
+accepted 175
+pedometer ok (252)
+error none
+fgs on
+gps src fused
+last fix now
+motion walking
+territory 1 hexes
+sync ok claimed
+rejected:
+  poor acc 1
+```
+
+Server row: `89209a0aa73ffff` owner `cda70d49-…` / `walker_cda70d49`.
+
+**Uninstall → reinstall → magic link → hex still there.** 2.8 ✅
+
+`profiles.cells_owned` still 0 — trigger bug, not blocking the map.
