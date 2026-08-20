@@ -4,10 +4,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'app_version.dart';
 import 'config/supabase_env.dart';
 import 'services/h3_indexer.dart';
 import 'services/location_service.dart';
 import 'services/step_service.dart';
+import 'services/sync/sync_coordinator.dart';
+import 'services/sync/territory_repository.dart';
 import 'services/tracking_coordinator.dart';
 import 'ui/auth/login_screen.dart';
 import 'ui/map/map_screen.dart';
@@ -90,15 +93,35 @@ class _Boot extends StatefulWidget {
   State<_Boot> createState() => _BootState();
 }
 
-class _BootState extends State<_Boot> {
+class _BootState extends State<_Boot> with WidgetsBindingObserver {
   TrackingCoordinator? _tracker;
+  SyncCoordinator? _sync;
+  TerritoryRepository? _territory;
   String? _error;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _start();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sync?.dispose();
+    _tracker?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Returning to foreground may have queued claims or restored connectivity
+    // — drain promptly rather than waiting for the periodic timer.
+    if (state == AppLifecycleState.resumed) {
+      _sync?.flushNow();
+    }
   }
 
   Future<void> _start() async {
@@ -134,14 +157,93 @@ class _BootState extends State<_Boot> {
       } catch (_) {}
     }
 
+    // Cloud sync is available only when the APK was built with the anon key
+    // AND the user has a session (magic link). Offline mode keeps Phase 1
+    // walking working without either.
+    SyncCoordinator? sync;
+    TerritoryRepository? territory;
+    final indexer = H3Indexer();
+
+    if (SupabaseEnv.configured) {
+      try {
+        final hasSession =
+            Supabase.instance.client.auth.currentSession != null;
+        if (hasSession) {
+          final client = Supabase.instance.client;
+          late final TrackingCoordinator t;
+          sync = SyncCoordinator(
+            client: client,
+            clientVersion: kAppVersion,
+            onReport: (report) async {
+              t.syncStatus = SyncStatus(
+                pending: await sync!.outbox.count(),
+                accepted: report.cellsAccepted,
+                rejected: report.cellsRejected,
+                newlyOwned: report.newlyOwned,
+                rateLimited: report.rateLimited,
+                at: DateTime.now(),
+                error: report.errors.isEmpty ? null : report.errors.first,
+              );
+              t.notifyListeners();
+            },
+          );
+          territory = TerritoryRepository(client);
+          t = TrackingCoordinator(
+            indexer: indexer,
+            location: LocationService(),
+            steps: StepService(),
+            outbox: sync.outbox,
+            enqueueClaims: sync.enqueue,
+          );
+          await t.init();
+          if (!mounted) {
+            sync.dispose();
+            return;
+          }
+          t.syncStatus = SyncStatus(
+            pending: await sync.outbox.count(),
+            accepted: 0,
+            rejected: 0,
+            newlyOwned: 0,
+            rateLimited: false,
+            at: DateTime.now(),
+          );
+          sync.start();
+          _sync = sync;
+          _territory = territory;
+          if (!mounted) {
+            sync.dispose();
+            return;
+          }
+          setState(() {
+            _tracker = t;
+            _busy = false;
+          });
+          return;
+        }
+      } catch (_) {
+        sync?.dispose();
+        sync = null;
+        territory = null;
+      }
+    }
+
+    // Offline / no-session path: local claims only.
     final t = TrackingCoordinator(
-      indexer: H3Indexer(),
+      indexer: indexer,
       location: LocationService(),
       steps: StepService(),
+      outbox: sync?.outbox,
+      enqueueClaims: sync?.enqueue,
     );
     await t.init();
 
-    if (!mounted) return;
+    if (!mounted) {
+      sync?.dispose();
+      return;
+    }
+    _sync = sync;
+    _territory = territory;
     setState(() {
       _tracker = t;
       _busy = false;
@@ -149,15 +251,15 @@ class _BootState extends State<_Boot> {
   }
 
   @override
-  void dispose() {
-    _tracker?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final t = _tracker;
-    if (t != null) return MapScreen(tracker: t);
+    if (t != null) {
+      return MapScreen(
+        tracker: t,
+        territory: _territory,
+        indexer: t.indexer,
+      );
+    }
 
     return Scaffold(
       body: Center(

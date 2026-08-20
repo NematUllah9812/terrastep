@@ -414,18 +414,32 @@ begin
 
   ------------------------------------------------------------- realtime
   -- Broadcast ONE message per affected region, not per cell.
-  perform realtime.send(
-      jsonb_build_object('type','cells_changed','cells', region_cells),
-      'cells_changed',
-      'region:' || region_key,
-      false                                   -- not private
-    )
-  from (
-    select c->>'parent_res5' as region_key,
-           jsonb_agg(c)      as region_cells
-      from jsonb_array_elements(v_changed) as c
-     group by 1
-  ) grouped;
+  --
+  -- Wrapped in its own block with OTHERS swallowed: realtime is a best-effort
+  -- broadcast, never part of the claim itself. If realtime.send() is
+  -- unavailable on the project (disabled realtime, permissions, an outage) it
+  -- MUST NOT roll back the territory write + receipt the user just earned by
+  -- walking. Phase 3's subscription simply sees nothing until the next poll.
+  declare
+    r record;
+  begin
+    for r in
+      select c->>'parent_res5' as region_key,
+             jsonb_agg(c)      as region_cells
+        from jsonb_array_elements(v_changed) as c
+       group by 1
+    loop
+      perform realtime.send(
+        jsonb_build_object('type','cells_changed','cells', r.region_cells),
+        'cells_changed',
+        'region:' || r.region_key,
+        false
+      );
+    end loop;
+  exception
+    when others then
+      raise notice 'realtime.send skipped: % %', sqlstate, sqlerrm;
+  end;
 
   -------------------------------------------------------------- receipt
   v_cached := jsonb_build_object(

@@ -103,9 +103,21 @@ jobs:
       - name: Build debug APK
         id: build
         working-directory: app
+        env:
+          # Publishable (anon) key only — safe to embed in an APK. Set this as
+          # an Actions secret to produce a cloud-enabled build; if absent the
+          # build still succeeds and the app runs in Continue-offline mode.
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -o pipefail
-          flutter build apk --debug 2>&1 | tee /tmp/build.log
+          if [ -n "$SUPABASE_ANON_KEY" ]; then
+            DART_DEFINE="--dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
+            echo "Building WITH Supabase cloud sync (anon key present)."
+          else
+            DART_DEFINE=""
+            echo "::warning::SUPABASE_ANON_KEY secret not set — building OFFLINE only."
+          fi
+          flutter build apk --debug $DART_DEFINE 2>&1 | tee /tmp/build.log
 
       - name: Package APK
         working-directory: app

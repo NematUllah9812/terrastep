@@ -51,6 +51,39 @@ class CellVisit {
   /// (server rule R5).
   int get windowSeconds => windowEnd.difference(windowStart).inSeconds;
 
+  /// Reconstruct a visit from durable storage. The server payload ([toJson])
+  /// is a subset of these fields, so the two shapes share keys.
+  factory CellVisit.fromStorage(Map<String, dynamic> j) => CellVisit(
+        cellId: j['cell_id'] as String,
+        parentRes5: j['parent_res5'] as String,
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+        windowStart: DateTime.parse(j['window_start'] as String).toLocal(),
+        windowEnd: DateTime.parse(j['window_end'] as String).toLocal(),
+      )
+      ..steps = (j['steps'] as num?)?.toInt() ?? 0
+      ..distanceM = (j['distance_m'] as num?)?.toDouble() ?? 0
+      ..dwellS = (j['dwell_s'] as num?)?.toInt() ?? 0
+      ..fixCount = (j['fix_count'] as num?)?.toInt() ?? 0
+      ..maxSpeed = (j['max_speed_mps'] as num?)?.toDouble() ?? 0;
+
+  /// Durable form of the visit. Includes every field the accumulator mutates
+  /// (unlike [toJson], which only sends what the server validates).
+  Map<String, dynamic> toStorage() => {
+        'cell_id': cellId,
+        'parent_res5': parentRes5,
+        'lat': lat,
+        'lng': lng,
+        'steps': steps,
+        'distance_m': distanceM,
+        'dwell_s': dwellS,
+        'fix_count': fixCount,
+        'mean_accuracy_m': meanAccuracy,
+        'max_speed_mps': maxSpeed,
+        'window_start': windowStart.toUtc().toIso8601String(),
+        'window_end': windowEnd.toUtc().toIso8601String(),
+      };
+
   /// Payload for the `claim_cells` RPC. Key names must match the SQL exactly.
   Map<String, dynamic> toJson() => {
         'cell_id': cellId,

@@ -34,6 +34,28 @@ class OutboxEntry {
         'p_cells': visits.map((v) => v.toJson()).toList(),
         'p_client_version': clientVersion,
       };
+
+  /// Durable form, used by the persistent [Outbox] implementation.
+  Map<String, dynamic> toStorage() => {
+        'batch_uuid': batchUuid,
+        'visits': visits.map((v) => v.toStorage()).toList(),
+        'queued_at': queuedAt.toUtc().toIso8601String(),
+        'attempts': attempts,
+        'not_before': notBefore.toUtc().toIso8601String(),
+        'last_error': lastError,
+      };
+
+  factory OutboxEntry.fromStorage(Map<String, dynamic> j) => OutboxEntry(
+        batchUuid: j['batch_uuid'] as String,
+        visits: ((j['visits'] as List?) ?? const [])
+            .map((e) => CellVisit.fromStorage(
+                Map<String, dynamic>.from(e as Map)))
+            .toList(),
+        queuedAt: DateTime.parse(j['queued_at'] as String).toLocal(),
+        attempts: (j['attempts'] as num?)?.toInt() ?? 0,
+        notBefore: DateTime.parse(j['not_before'] as String).toLocal(),
+        lastError: j['last_error'] as String?,
+      );
 }
 
 /// Durable queue of pending claims.

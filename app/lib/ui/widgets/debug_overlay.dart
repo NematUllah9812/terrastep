@@ -114,6 +114,12 @@ class _DebugOverlayState extends State<DebugOverlay> {
     }
   }
 
+  String _syncLine(String prefix, SyncStatus s) =>
+      '$prefix pending:${s.pending} ok:${s.accepted} '
+      'new:${s.newlyOwned} rej:${s.rejected}'
+      '${s.rateLimited ? " RATE-LIMITED" : ""}'
+      '${s.error != null ? " err:${s.error}" : ""}';
+
   String _dump() {
     final v = tracker.currentVisit;
     final cfg = tracker.cfg;
@@ -139,6 +145,12 @@ class _DebugOverlayState extends State<DebugOverlay> {
       ..writeln('last fix $_lastFixAge')
       ..writeln('motion ${tracker.motion.name}')
       ..writeln('territory ${tracker.claimed.length} hexes');
+    final sync = tracker.syncStatus;
+    if (sync != null) {
+      buf.writeln(_syncLine('sync', sync));
+    } else if (SupabaseEnv.configured) {
+      buf.writeln('sync offline (local only)');
+    }
     if (tracker.rejections.isNotEmpty) {
       buf.writeln('rejected:');
       for (final e in tracker.rejections.entries) {
@@ -251,6 +263,19 @@ class _DebugOverlayState extends State<DebugOverlay> {
                     : const Color(0xFFEF4444)),
             _row('gps src', tracker.usingLocationManager ? 'chip' : 'fused'),
             _row('territory', '${tracker.claimed.length} hexes'),
+            if (tracker.syncStatus != null)
+              _row(
+                'sync',
+                'pending ${tracker.syncStatus!.pending}  '
+                    'ok ${tracker.syncStatus!.accepted}  '
+                    'new ${tracker.syncStatus!.newlyOwned}',
+                valueColor: tracker.syncStatus!.pending > 0
+                    ? const Color(0xFFFBBF24)
+                    : const Color(0xFF22C55E),
+              )
+            else if (SupabaseEnv.configured)
+              _row('sync', 'offline (local only)',
+                  valueColor: const Color(0xFF64748B)),
             _row('auth', _authLabel),
             _row('battery', _batteryLabel),
             _row('elapsed', _elapsed),

@@ -100,6 +100,26 @@ class SyncWorker {
     return queued;
   }
 
+  /// Enqueue a caller-supplied list of visits (already drained from the
+  /// accumulator by the host app). Same batching/persistence rules as
+  /// [enqueueFrom]; the caller owns removing them from the accumulator.
+  Future<int> enqueueVisits(List<CellVisit> ready) async {
+    if (ready.isEmpty) return 0;
+
+    var queued = 0;
+    for (var i = 0; i < ready.length; i += maxCellsPerBatch) {
+      final chunk = ready.sublist(
+          i, math.min(i + maxCellsPerBatch, ready.length));
+      await outbox.add(OutboxEntry(
+        batchUuid: uuidGen(),
+        visits: List<CellVisit>.from(chunk),
+        queuedAt: clock(),
+      ));
+      queued += chunk.length;
+    }
+    return queued;
+  }
+
   /// Attempt delivery of all due batches.
   ///
   /// Safe to call when offline: transport failures leave batches queued with a

@@ -1,15 +1,18 @@
 import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:terrastep_core/core/game_config.dart';
+import 'package:terrastep_core/data/local/outbox.dart';
 import 'package:terrastep_core/domain/models/cell_visit.dart';
 import 'package:terrastep_core/domain/session_accumulator.dart';
 
 import 'h3_indexer.dart';
 import 'location_service.dart';
 import 'step_service.dart';
+import 'sync/territory_repository.dart';
 
 /// A cell this device has claimed. Phase 1 is offline, so ownership is purely
 /// local; Phase 2 replaces this with server state.
@@ -47,12 +50,26 @@ class TrackingCoordinator extends ChangeNotifier {
   final LocationService location;
   final StepService steps;
 
+  /// Durable outbox + a callback that hands ready visits to the SyncWorker.
+  /// Both are null in offline mode (no Supabase key) or before login.
+  final Outbox? outbox;
+  final Future<void> Function(List<CellVisit> ready)? enqueueClaims;
+
   late final SessionAccumulator accumulator;
 
   static const _prefsKey = 'terrastep.claimed.v1';
 
   final Map<String, ClaimedCell> _claimed = {};
   Map<String, ClaimedCell> get claimed => Map.unmodifiable(_claimed);
+
+  /// Server-owned cells in the current view, keyed by cell id. Populated by
+  /// [setServerCells] after a `get_cells_in_view` call. The map reads this to
+  /// colour other players' hexes and to restore your own after a reinstall.
+  final Map<String, ServerCell> serverCells = {};
+
+  /// Ids the signed-in user owns on the server in the current view.
+  Set<String> get serverOwnedMine =>
+      serverCells.values.where((c) => c.isMine).map((c) => c.cellId).toSet();
 
   GeoPoint? _position;
   GeoPoint? get position => _position;
@@ -78,6 +95,11 @@ class TrackingCoordinator extends ChangeNotifier {
 
   DateTime? sessionStartedAt;
 
+  /// Last cloud-sync report, for the debug overlay. Updated by the host app
+  /// (which owns the SyncCoordinator) after each flush. A null value means
+  /// we're offline / not signed in (no SyncCoordinator exists).
+  SyncStatus? syncStatus;
+
   /// True when we are synthesizing steps from distance because the hardware
   /// pedometer never produced a reading. Surfaced in the debug overlay so a
   /// tester can tell estimated steps from real ones.
@@ -92,6 +114,8 @@ class TrackingCoordinator extends ChangeNotifier {
     required this.location,
     required this.steps,
     this.cfg = const GameConfig(),
+    this.outbox,
+    this.enqueueClaims,
   }) {
     accumulator = SessionAccumulator(
       cfg: cfg,
@@ -159,6 +183,13 @@ class TrackingCoordinator extends ChangeNotifier {
     final ready = accumulator.readyToSubmit();
     if (ready.isEmpty) return;
 
+    // Mark submitted FIRST (synchronously, before any await) so a GPS/step
+    // event firing during persistence cannot enqueue the same visit twice.
+    accumulator.markSubmitted(ready);
+
+    // Optimistic local render: the hex turns blue immediately. The server is
+    // authoritative, but the client floors match the server's, so an accepted
+    // walk is overwhelmingly likely to be accepted server-side too.
     for (final v in ready) {
       final effort = cfg.computeEffort(v.steps, v.distanceM, v.dwellS);
       final existing = _claimed[v.cellId];
@@ -177,9 +208,26 @@ class TrackingCoordinator extends ChangeNotifier {
         onCellClaimed?.call(v.cellId);
       }
     }
-    // Phase 2: enqueue to the outbox here instead of dropping.
-    accumulator.markSubmitted(ready);
     _saveClaimed();
+
+    // Hand the walked visits to the SyncWorker (durable outbox → RPC). A
+    // failure here must never undo a claim the user earned: the local hex
+    // stays, and the outbox retries. In offline mode [enqueueClaims] is null.
+    final enqueue = enqueueClaims;
+    if (enqueue != null && ready.isNotEmpty) {
+      unawaited(enqueue(ready).catchError((Object e) {
+        lastError = 'enqueue failed: $e';
+      }));
+    }
+  }
+
+  /// Replace the server-known cells for the current view. Called by the map
+  /// after a `get_cells_in_view` round-trip (threshold 2.8).
+  void setServerCells(List<ServerCell> cells) {
+    serverCells
+      ..clear()
+      ..addEntries(cells.map((c) => MapEntry(c.cellId, c)));
+    notifyListeners();
   }
 
   /// Fired on a new claim, for the celebration animation + haptic.
@@ -235,4 +283,26 @@ class GeoPoint {
   final double lat;
   final double lng;
   const GeoPoint(this.lat, this.lng);
+}
+
+/// Snapshot of cloud-sync state shown in the debug overlay. A null value means
+/// we're offline / not signed in (no SyncCoordinator exists).
+class SyncStatus {
+  final int pending;
+  final int accepted;
+  final int rejected;
+  final int newlyOwned;
+  final bool rateLimited;
+  final String? error;
+  final DateTime at;
+
+  const SyncStatus({
+    required this.pending,
+    required this.accepted,
+    required this.rejected,
+    required this.newlyOwned,
+    required this.rateLimited,
+    required this.at,
+    this.error,
+  });
 }
