@@ -6,6 +6,7 @@ import 'package:terrastep_core/domain/models/cell_visit.dart';
 
 import '../app_version.dart';
 import '../config/supabase_env.dart';
+import 'tracking_coordinator.dart';
 
 /// Thin Supabase adapter. Login / claim upload / hydrate. Failures must
 /// never break local walking.
@@ -64,21 +65,48 @@ class CloudSync {
   }
 
   /// Server hexes you own among [cellIds]. Empty if offline or none yet.
-  static Future<List<String>> myCells(List<String> cellIds) async {
+  static Future<List<ClaimedCell>> myCells(List<String> cellIds) async {
     if (!signedIn || cellIds.isEmpty) return const [];
     final res = await Supabase.instance.client.rpc(
       'get_cells_in_view',
       params: {'p_cells': cellIds},
     );
     final rows = (res as List?) ?? const [];
-    final mine = <String>[];
+    final mine = <ClaimedCell>[];
     for (final r in rows) {
       final m = Map<String, dynamic>.from(r as Map);
-      if (m['is_mine'] == true && m['cell_id'] is String) {
-        mine.add(m['cell_id'] as String);
-      }
+      if (m['is_mine'] != true || m['cell_id'] is! String) continue;
+      mine.add(ClaimedCell(
+        cellId: m['cell_id'] as String,
+        claimedAt: DateTime.now(),
+        effort: (m['influence'] as num?)?.toDouble() ?? 0,
+        name: m['name'] as String?,
+        color: m['color'] as String?,
+      ));
     }
     return mine;
+  }
+
+  static Future<String?> updateTerritory({
+    required String cellId,
+    String? name,
+    String? color,
+  }) async {
+    if (!signedIn) return 'not signed in';
+    final res = await Supabase.instance.client.rpc(
+      'update_territory',
+      params: {
+        'p_cell_id': cellId,
+        'p_name': name,
+        'p_color': color,
+      },
+    );
+    if (res is Map) {
+      final ok = res['ok'] == true;
+      if (ok) return null;
+      return (res['error'] as String?) ?? 'fail';
+    }
+    return null;
   }
 
   static String _uuid() {

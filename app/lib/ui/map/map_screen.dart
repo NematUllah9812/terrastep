@@ -167,6 +167,176 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     );
   }
 
+  static Color? _hexColor(String? hex) {
+    if (hex == null || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(hex)) return null;
+    return Color(int.parse('FF${hex.substring(1)}', radix: 16));
+  }
+
+  List<Marker> _nameMarkers() {
+    final t = widget.tracker;
+    final out = <Marker>[];
+    for (final c in t.claimed.values) {
+      final n = c.name;
+      if (n == null || n.isEmpty) continue;
+      try {
+        final g = t.indexer.center(c.cellId);
+        out.add(Marker(
+          point: LatLng(g.lat, g.lon),
+          width: 120,
+          height: 22,
+          child: Center(
+            child: Text(
+              n,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(blurRadius: 6, color: Colors.black)],
+              ),
+            ),
+          ),
+        ));
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  Future<void> _onHexLongPress(LatLng latlng) async {
+    final t = widget.tracker;
+    String cellId;
+    try {
+      cellId = t.indexer.cellFor(latlng.latitude, latlng.longitude);
+    } catch (_) {
+      return;
+    }
+    final mine = t.claimed[cellId];
+    if (mine == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Not yours — walk to claim, then long-press to name it.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (!CloudSync.signedIn) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to rename a hex on the server.')),
+      );
+      return;
+    }
+    await _editSheet(mine);
+  }
+
+  static const _palette = <String>[
+    '#3B82F6',
+    '#22C55E',
+    '#F59E0B',
+    '#EF4444',
+    '#A855F7',
+    '#06B6D4',
+  ];
+
+  Future<void> _editSheet(ClaimedCell cell) async {
+    final nameCtl = TextEditingController(text: cell.name ?? '');
+    var color = cell.color ?? '#3B82F6';
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0B1220),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: 24 + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (ctx, setLocal) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Name this hex',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(cell.cellId,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF64748B))),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtl,
+                  maxLength: 32,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    hintText: 'Hilltop',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final hex in _palette)
+                      GestureDetector(
+                        onTap: () => setLocal(() => color = hex),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: _hexColor(hex),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: color == hex
+                                  ? Colors.white
+                                  : Colors.white24,
+                              width: color == hex ? 3 : 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () async {
+                    final name = nameCtl.text.trim();
+                    if (name.isEmpty) return;
+                    Navigator.pop(ctx);
+                    final err = await CloudSync.updateTerritory(
+                      cellId: cell.cellId,
+                      name: name,
+                      color: color,
+                    );
+                    if (!mounted) return;
+                    if (err != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Rename failed: $err')),
+                      );
+                      return;
+                    }
+                    widget.tracker.setHexStyle(cell.cellId,
+                        name: name, color: color);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Saved “$name”')),
+                    );
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    nameCtl.dispose();
+  }
+
   /// Build the hex polygons: the ring around the player, coloured by state.
   List<Polygon> _hexes() {
     final t = widget.tracker;
@@ -231,6 +401,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
               minZoom: 3,
               maxZoom: 19,
               onMapReady: () => setState(() => _mapReady = true),
+              onLongPress: (_, latlng) => _onHexLongPress(latlng),
               onPositionChanged: (_, hasGesture) {
                 if (hasGesture && _followMe) setState(() => _followMe = false);
               },
@@ -243,15 +414,16 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 maxZoom: 19,
               ),
               PolygonLayer(polygons: _hexes()),
-              if (p != null)
-                MarkerLayer(markers: [
+              MarkerLayer(markers: [
+                ..._nameMarkers(),
+                if (p != null)
                   Marker(
                     point: LatLng(p.lat, p.lng),
                     width: 22,
                     height: 22,
                     child: const _PositionDot(),
                   ),
-                ]),
+              ]),
             ],
           ),
 

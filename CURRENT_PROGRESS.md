@@ -5,7 +5,7 @@
 **Latest:** **2.8 done.** Uninstall → login → home hex still blue. Ship **v0.1.7+8**. Battery parked (O12).
 **Field data:** [`FIELD_REPORT_2026-08-19.md`](FIELD_REPORT_2026-08-19.md)
 **Phase 2 map:** [`PHASE2.md`](PHASE2.md)
-**Next:** 2.9 rename / recolour own hex. Then 2.4 RLS.
+**Next:** install **v0.1.8+9**. Long-press your hex, name it, pick a colour.
 
 | | |
 |---|---|
@@ -49,7 +49,7 @@ Also available from Actions (rebuilds on every relevant push): repo →
 | | |
 |---|---|
 | File | `releases/terrastep-debug.apk` |
-| Version | **v0.1.7+8** (dump first line) |
+| Version | **v0.1.8+9** (dump first line) |
 | Size | 45 MB |
 | ABI | `arm64-v8a` |
 | Signed | Debug (not Play Store) |
@@ -218,7 +218,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | 2.6 | Outbox + sync worker | 🟡 | Upload on claim works. Not durable SQLite / airplane test. |
 | 2.7 | `get_cells_in_view` | ✅ | Hydrate used it on reinstall. |
 | 2.8 | Server-driven map render | ✅ | **Uninstall → login → `89209a0aa73ffff` still blue.** |
-| 2.9 | Naming + colour | 🟡 | SQL `update_territory` exists. No long-press UI. |
+| 2.9 | Naming + colour | 🟡 | **v0.1.8+9** long-press UI. Not yet walked on a phone. |
 
 ### PHASE 3 — Multiplayer *(2 / 8)*
 
@@ -336,11 +336,11 @@ latency target, and **pocket battery (1.8 / Walk 7)**.
 
 **Do these in this order. Nothing else first.**
 
-1. **2.9** Long-press own hex → rename + recolour → persists on server.
-2. **2.4** RLS hostile test with a real JWT.
-3. Fix `profiles.cells_owned` still 0 (trigger overwrites RPC counters).
+1. **You:** install **v0.1.8+9**. Dump first line must match. Long-press your blue hex, name it, pick a colour. Reinstall should keep the name.
+2. **Then 2.4** RLS hostile test.
+3. Fix `profiles.cells_owned` still 0.
 4. **O12 battery later.** Do not reintroduce idle sampling until asked.
-5. Do **not** start Phase 3 realtime until 2.9 is on a phone.
+5. Do **not** start Phase 3 until 2.9 is proven on a phone.
 
 Pocket hex-fill (Phase 1 exit *loop*) is proven. The &lt;4 %/hr number is
 parked, not forgotten.
@@ -358,6 +358,7 @@ parked, not forgotten.
 
 | Date | Change | Issues |
 |---|---|---|
+| 2026-08-20 | **v0.1.8+9.** Long-press own hex → rename + colour (`update_territory`). | 2.9 |
 | 2026-08-20 | **2.8 done.** Uninstall → login → home hex `89209a0aa73ffff` still blue. `sync ok claimed`. | 2.8 |
 | 2026-08-20 | **v0.1.7+8.** Sign out + `claim_cells` upload + hydrate. SQL harden (no st_point / realtime abort). | 2.2, 2.6 |
 | 2026-08-19 | **v0.1.6+7.** Login screen + magic-link deep link. Anon key via dart-define (not committed). FGS unchanged. | 2.2 |

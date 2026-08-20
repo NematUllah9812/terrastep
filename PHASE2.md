@@ -16,7 +16,7 @@ Do these in order. Do not skip ahead to multiplayer (Phase 3).
   2.6  Outbox → real RPC                  ← first cut (upload on claim). Not durable SQLite
   2.7  get_cells_in_view                  ← done (hydrate used it)
   2.8  Map draws SERVER hexes             ← done 2026-08-20. Uninstall → login → hex back
-  2.9  Rename / recolour own hex          ← NEXT. SQL exists, no UI
+  2.9  Rename / recolour own hex          ← v0.1.8+9 long-press own hex
 ```
 
 ## 2.1 status (2026-08-19)
@@ -49,8 +49,11 @@ select count(*) from public.territories;
 `89209a0aa73ffff` owner `walker_cda70d49`. Uninstall → reinstall → magic
 link → hex still there. Same-phone reinstall counts as device B.
 
-**Next:** 2.9 long-press own hex → rename + colour. Then 2.4 RLS. Do not
-start Phase 3 realtime until 2.9 is on a phone.
+**2.9 APK v0.1.8+9:** long-press **your** blue hex → name (≤32) + colour
+→ `update_territory`. Long-press a hex you don’t own → no editor.
+
+**After 2.9 on a phone:** 2.4 RLS test, then Phase 2 is feature-complete
+(2.6 airplane/outbox durability can wait). Do not start Phase 3 yet.
 
 **Never paste the `service_role` / `sb_secret_` key into chat or git.**  
 The anon/publishable key is enough for the app. CI rejects raw JWTs, so the

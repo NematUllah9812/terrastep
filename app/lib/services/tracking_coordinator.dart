@@ -17,20 +17,45 @@ class ClaimedCell {
   final String cellId;
   final DateTime claimedAt;
   final double effort;
+  final String? name;
+  final String? color;
 
-  const ClaimedCell(
-      {required this.cellId, required this.claimedAt, required this.effort});
+  const ClaimedCell({
+    required this.cellId,
+    required this.claimedAt,
+    required this.effort,
+    this.name,
+    this.color,
+  });
+
+  ClaimedCell copyWith({
+    DateTime? claimedAt,
+    double? effort,
+    String? name,
+    String? color,
+  }) =>
+      ClaimedCell(
+        cellId: cellId,
+        claimedAt: claimedAt ?? this.claimedAt,
+        effort: effort ?? this.effort,
+        name: name ?? this.name,
+        color: color ?? this.color,
+      );
 
   Map<String, dynamic> toJson() => {
         'cell': cellId,
         'at': claimedAt.toIso8601String(),
         'effort': effort,
+        if (name != null) 'name': name,
+        if (color != null) 'color': color,
       };
 
   factory ClaimedCell.fromJson(Map<String, dynamic> j) => ClaimedCell(
         cellId: j['cell'] as String,
         claimedAt: DateTime.parse(j['at'] as String),
         effort: (j['effort'] as num).toDouble(),
+        name: j['name'] as String?,
+        color: j['color'] as String?,
       );
 }
 
@@ -163,11 +188,7 @@ class TrackingCoordinator extends ChangeNotifier {
       final effort = cfg.computeEffort(v.steps, v.distanceM, v.dwellS);
       final existing = _claimed[v.cellId];
       if (existing != null) {
-        _claimed[v.cellId] = ClaimedCell(
-          cellId: v.cellId,
-          claimedAt: existing.claimedAt,
-          effort: existing.effort + effort,
-        );
+        _claimed[v.cellId] = existing.copyWith(effort: existing.effort + effort);
       } else {
         _claimed[v.cellId] = ClaimedCell(
           cellId: v.cellId,
@@ -197,21 +218,32 @@ class TrackingCoordinator extends ChangeNotifier {
   }
 
   /// Merge hexes the server says we own (reinstall / second phone).
-  void mergeServerClaims(Iterable<String> cellIds) {
-    var added = false;
-    for (final id in cellIds) {
-      if (_claimed.containsKey(id)) continue;
-      _claimed[id] = ClaimedCell(
-        cellId: id,
-        claimedAt: DateTime.now(),
-        effort: 0,
-      );
-      added = true;
+  void mergeServerClaims(Iterable<ClaimedCell> cells) {
+    var changed = false;
+    for (final c in cells) {
+      final old = _claimed[c.cellId];
+      if (old == null) {
+        _claimed[c.cellId] = c;
+        changed = true;
+        continue;
+      }
+      if (old.name != c.name || old.color != c.color) {
+        _claimed[c.cellId] = old.copyWith(name: c.name, color: c.color);
+        changed = true;
+      }
     }
-    if (added) {
+    if (changed) {
       _saveClaimed();
       notifyListeners();
     }
+  }
+
+  void setHexStyle(String cellId, {String? name, String? color}) {
+    final old = _claimed[cellId];
+    if (old == null) return;
+    _claimed[cellId] = old.copyWith(name: name, color: color);
+    _saveClaimed();
+    notifyListeners();
   }
 
   double get currentProgress {
