@@ -2,10 +2,10 @@
 
 **Last updated:** 2026-08-20
 **Repo:** `NematUllah9812/terrastep` (private)
-**Latest:** **2.8 done.** Uninstall → login → home hex still blue. Ship **v0.1.7+8**. Battery parked (O12).
+**Latest:** **Phase 2 player loop DONE.** 2.8 restore + 2.9 name/colour on **v0.1.10+11**. Battery parked (O12).
 **Field data:** [`FIELD_REPORT_2026-08-19.md`](FIELD_REPORT_2026-08-19.md)
 **Phase 2 map:** [`PHASE2.md`](PHASE2.md)
-**Next:** install **v0.1.8+9**. Long-press your hex, name it, pick a colour.
+**Next:** 2.4 RLS, or Phase 3 if you want two-phone contests.
 
 | | |
 |---|---|
@@ -174,7 +174,7 @@ pocket (Walk 7). Battery &lt;4 %/hr is **deferred** (O12), not failed-and-forgot
 | Database schema | ✅ Written + verified deploys |
 | Claim / contest / decay engine | ✅ Written + 48 tests passing |
 | Server-side anti-cheat rules | 🟡 Mostly written, partially tested |
-| Supabase deployment | 🟡 Schema + RPCs live. Magic link + cloud hex restore proven. `cells_owned` still 0. |
+| Supabase deployment | 🟡 Schema + RPCs live. Claim, restore, name/colour proven. `cells_owned` still 0. |
 | Flutter app | 🟡 Claims + persist + FGS on Android. No iOS. |
 | Real GPS / steps / battery | 🟡 Pocket claim proven (Walk 7). Battery %/hr deferred (O12). |
 | Store submission | ❌ Not started |
@@ -206,7 +206,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | 1.7 | Local claim + persist | ✅ | **Claim + force-quit × N, hex stayed blue.** SharedPreferences, not SQLite. |
 | 1.8 | Background survival, <4%/hr | 🟡 | **Pocket tracking ✅.** Battery &lt;4 %/hr **deferred** (O12). |
 
-### PHASE 2 — Backend & Persistence *(6 / 9 done, 3 partial)*
+### PHASE 2 — Backend & Persistence *(6 / 9 done, 3 partial — player loop complete)*
 
 | # | Threshold | Status | Note |
 |---|---|---|---|
@@ -218,7 +218,7 @@ Legend: ✅ done & verified · 🟡 implemented, waiting on a device · ⬜ not 
 | 2.6 | Outbox + sync worker | 🟡 | Upload on claim works. Not durable SQLite / airplane test. |
 | 2.7 | `get_cells_in_view` | ✅ | Hydrate used it on reinstall. |
 | 2.8 | Server-driven map render | ✅ | **Uninstall → login → `89209a0aa73ffff` still blue.** |
-| 2.9 | Naming + colour | 🟡 | **v0.1.8+9** long-press UI. Not yet walked on a phone. |
+| 2.9 | Naming + colour | ✅ | **On device.** Name (Home) + colour change on v0.1.10+11. |
 
 ### PHASE 3 — Multiplayer *(2 / 8)*
 
@@ -262,10 +262,10 @@ All ⬜. Not started.
 | 3 — Multiplayer | 2 | 4 | 2 | 8 |
 | 4 — Anti-cheat | 3 | 4 | 1 | 8 |
 | 5 — Launch | 0 | 0 | 9 | 9 |
-| **Total** | **13** | **18** | **14** | **45** |
+| **Total** | **14** | **17** | **14** | **45** |
 
-**Fully complete: 13 / 45 (29%).**
-Partials at half credit: 22 / 45 (**~49%**).
+**Fully complete: 14 / 45 (31%).**
+Partials at half credit: 22.5 / 45 (**~50%**).
 
 1.7 is the first on-device acceptance test that fully passed.
 
@@ -336,11 +336,9 @@ latency target, and **pocket battery (1.8 / Walk 7)**.
 
 **Do these in this order. Nothing else first.**
 
-1. **You:** install **v0.1.8+9**. Dump first line must match. Long-press your blue hex, name it, pick a colour. Reinstall should keep the name.
-2. **Then 2.4** RLS hostile test.
-3. Fix `profiles.cells_owned` still 0.
-4. **O12 battery later.** Do not reintroduce idle sampling until asked.
-5. Do **not** start Phase 3 until 2.9 is proven on a phone.
+1. **Phase 2 player loop is done.** Optional leftovers: 2.4 RLS, 2.6 airplane sync, `cells_owned` = 0.
+2. **Phase 3** when you want two phones / live contests. Do not start it by accident.
+3. **O12 battery later.** Do not reintroduce idle sampling until asked.
 
 Pocket hex-fill (Phase 1 exit *loop*) is proven. The &lt;4 %/hr number is
 parked, not forgotten.

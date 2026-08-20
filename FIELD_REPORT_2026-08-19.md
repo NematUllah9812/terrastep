@@ -78,3 +78,11 @@ Server row: `89209a0aa73ffff` owner `cda70d49-…` / `walker_cda70d49`.
 **Uninstall → reinstall → magic link → hex still there.** 2.8 ✅
 
 `profiles.cells_owned` still 0 — trigger bug, not blocking the map.
+
+---
+
+## 2026-08-20 — 2.9 (v0.1.10+11)
+
+On device: hex named **Home**, colour can be changed. Territory still on the account after reinstall. Save crash fixed on this build.
+
+**Phase 2 player loop ✅** (claim, cloud, restore, name/colour).
